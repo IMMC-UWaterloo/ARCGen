@@ -16,7 +16,7 @@ addParameter(nvArgObj, 'nResamplePoints',   100);
 addParameter(nvArgObj, 'Diagnostics',       'off');
 addParameter(nvArgObj, 'invalidCurves',     []);
 addParameter(nvArgObj, 'CorridorScaleFact', 1);
-addParameter(nvArgObj, 'Normalization',     'off');
+addParameter(nvArgObj, 'NormalizeCurves',   'off');
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -24,25 +24,65 @@ nvArg = nvArgObj.Results;  % Structure created for convenience
 
 
 %% Compute arclength based on input curve datapoints
-for iCurve = 1:length(responseCurves)
-    temp = responseCurves(iCurve).data; % Temporary for conveinence
-    % Compute arc-length between each data point
-    segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
-        + (temp(1:end-1,2)-temp(2:end,2)).^2);
-    alen = cumsum([0;segments]);
-    % Append cumulative arc length to data array
-    responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
-    % Compute normalized arc-length
-    responseCurves(iCurve).maxAlen = max(alen);
-    responseCurves(iCurve).data = [responseCurves(iCurve).data,...
-        alen./responseCurves(iCurve).maxAlen];
-    % Determine max [x,y] data
-    tempMax = max(temp,[],1);
-    responseCurves(iCurve).xMax = tempMax(1);
-    responseCurves(iCurve).yMax = tempMax(2);
-    % Remove spurious duplicates
-     [~,index,~] = unique(responseCurves(iCurve).data(:,4));
-     responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+% Do not perform normalization
+if strcmp(nvArg.NormalizeCurves,'off')
+    disp('No Curve Normalization')
+    for iCurve = 1:length(responseCurves)
+        temp = responseCurves(iCurve).data; % Temporary for conveinence
+        % Compute arc-length between each data point
+        segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+            + (temp(1:end-1,2)-temp(2:end,2)).^2);
+        alen = cumsum([0;segments]);
+        % Append cumulative arc length to data array
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        % Compute normalized arc-length
+        responseCurves(iCurve).maxAlen = max(alen);
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
+            alen./responseCurves(iCurve).maxAlen];
+        % Determine max [x,y] data
+        tempMax = max(temp,[],1);
+        responseCurves(iCurve).xMax = tempMax(1);
+        responseCurves(iCurve).yMax = tempMax(2);
+        % Remove spurious duplicates
+        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+    end
+% Perform curve normalization
+else
+    disp('Normalizing Curves')
+    % Extract max of x and y data
+    for iCurve = 1:length(responseCurves)
+        tempMax = max(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMax = tempMax(1);
+        responseCurves(iCurve).yMax = tempMax(2);
+    end
+    % Decision: group mean? group max? I think mean. 
+    xNorm = mean([responseCurves.xMax]);
+    yNorm = mean([responseCurves.yMax]);
+    % Normalize the axis of each curve, then do arc-length calcs
+    for iCurve = 1:length(responseCurves)
+        temp = responseCurves(iCurve).data; % Temporary for conveinence
+        % normalize by simple division
+        temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+        % Compute arc-length between each data point
+        segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+            + (temp(1:end-1,2)-temp(2:end,2)).^2);
+        alen = cumsum([0;segments]);
+        % Append cumulative arc length to data array
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        % Compute normalized arc-length
+        responseCurves(iCurve).maxAlen = max(alen);
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
+            alen./responseCurves(iCurve).maxAlen];
+        % Determine max [x,y] data
+        tempMax = max(temp,[],1);
+        responseCurves(iCurve).xNormMax = tempMax(1);
+        responseCurves(iCurve).yNormMax = tempMax(2);
+        % Remove spurious duplicates
+        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+    end
+        
 end
 
 %% Resample response curve based on normalized arc-length
