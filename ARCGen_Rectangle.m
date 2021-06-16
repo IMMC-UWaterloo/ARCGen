@@ -12,10 +12,11 @@ function [charAvg, innerCorr, outerCorr, quadrants] = ARCGen_Rectangle(responseC
 
 %% Setup Name-Value Argument parser
 nvArgObj = inputParser;
-addParameter(nvArgObj,'nResamplePoints',100);
-addParameter(nvArgObj,'Diagnostics','off');
-addParameter(nvArgObj,'invalidCurves',[]);
-addParameter(nvArgObj,'CorridorScaleFact',1);
+addParameter(nvArgObj, 'nResamplePoints',   100);
+addParameter(nvArgObj, 'Diagnostics',       'off');
+addParameter(nvArgObj, 'invalidCurves',     []);
+addParameter(nvArgObj, 'CorridorScaleFact', 1);
+addParameter(nvArgObj, 'Normalization',     'off');
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -39,6 +40,9 @@ for iCurve = 1:length(responseCurves)
     tempMax = max(temp,[],1);
     responseCurves(iCurve).xMax = tempMax(1);
     responseCurves(iCurve).yMax = tempMax(2);
+    % Remove spurious duplicates
+     [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+     responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
 end
 
 %% Resample response curve based on normalized arc-length
