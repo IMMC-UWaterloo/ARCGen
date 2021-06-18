@@ -8,15 +8,18 @@
 %
 % TODO: add description and syntax
 
-function [charAvg, innerCorr, outerCorr, quadrants] = ARCGen_Rectangle(responseCurves,varargin)
+function [charAvg, innerCorr, outerCorr, processedCurveData] = ...
+    ARCGen_Rectangle(responseCurves,varargin)
 
 %% Setup Name-Value Argument parser
 nvArgObj = inputParser;
 addParameter(nvArgObj, 'nResamplePoints',   100);
 addParameter(nvArgObj, 'Diagnostics',       'off');
-addParameter(nvArgObj, 'invalidCurves',     []);
+addParameter(nvArgObj, 'InvalidCurves',     []);
 addParameter(nvArgObj, 'CorridorScaleFact', 1);
 addParameter(nvArgObj, 'NormalizeCurves',   'off');
+addParameter(nvArgObj, 'HandleOutliers',    'off');
+addParameter(nvArgObj, 'DeviationFact',     2);
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -26,7 +29,6 @@ nvArg = nvArgObj.Results;  % Structure created for convenience
 %% Compute arclength based on input curve datapoints
 % Do not perform normalization
 if strcmp(nvArg.NormalizeCurves,'off')
-    disp('No Curve Normalization')
     for iCurve = 1:length(responseCurves)
         temp = responseCurves(iCurve).data; % Temporary for conveinence
         % Compute arc-length between each data point
@@ -47,9 +49,9 @@ if strcmp(nvArg.NormalizeCurves,'off')
         [~,index,~] = unique(responseCurves(iCurve).data(:,4));
         responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
     end
+
 % Perform curve normalization
 else
-    disp('Normalizing Curves')
     % Extract max of x and y data
     for iCurve = 1:length(responseCurves)
         tempMax = max(responseCurves(iCurve).data,[],1);
@@ -81,9 +83,96 @@ else
         % Remove spurious duplicates
         [~,index,~] = unique(responseCurves(iCurve).data(:,4));
         responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
-    end
-        
+    end      
 end
+
+% Compute mean and median arc-length deviation
+meanAlen = mean([responseCurves.maxAlen]);
+for iCurve=1:length(responseCurves)
+    responseCurves(iCurve).meanDevs = ...
+        responseCurves(iCurve).maxAlen-meanAlen;
+end
+
+medianAlen = median([responseCurves.maxAlen]);
+for iCurve=1:length(responseCurves)
+    responseCurves(iCurve).medianDev = ...
+        responseCurves(iCurve).maxAlen-medianAlen;
+end
+
+%% Begin handling of outliers
+switch nvArg.HandleOutliers
+    case 'RemoveExtraneous'
+        % Use median absolute deviation
+        indexInvalid = abs([responseCurves.medianDev]) > ...
+            nvArg.DeviationFact*median(abs([responseCurves.medianDev]));
+        responseCurves(indexInvalid) = [];
+        
+    case 'CropToShortest'
+        minAlen = min([responseCurves.maxAlen]);
+        % Crop each curve to shortest and fix alen normalization
+        for iCurve = 1:length(responseCurves)
+            index = responseCurves(iCurve).data(:,3) <= minAlen;
+            responseCurves(iCurve).data = ...
+                responseCurves(iCurve).data(index,:);
+            
+            temp = responseCurves(iCurve).data; % Temporary for conveinence
+            % normalize by simple division
+            temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+            % Compute arc-length between each data point
+            segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+                + (temp(1:end-1,2)-temp(2:end,2)).^2);
+            alen = cumsum([0;segments]);
+            
+            responseCurves(iCurve).data(:,3) = alen;
+            % Compute normalized arc-length
+            responseCurves(iCurve).maxAlen = max(alen);
+            responseCurves(iCurve).data(:,4) = ...
+                alen./responseCurves(iCurve).maxAlen;
+            % Determine max [x,y] data
+            tempMax = max(temp,[],1);
+            responseCurves(iCurve).xNormMax = tempMax(1);
+            responseCurves(iCurve).yNormMax = tempMax(2);
+            % Remove spurious duplicates
+            [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+            responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+        end
+    
+    case 'CropToDeviationFactor'
+        lenCropAlen = median([responseCurves.maxAlen]) + ...
+            median(abs([responseCurves.medianDev])).*nvArg.DeviationFact;
+        for iCurve = 1:length(responseCurves)
+            index = responseCurves(iCurve).data(:,3) <= lenCropAlen;
+            responseCurves(iCurve).data = ...
+                responseCurves(iCurve).data(index,:);
+            
+            temp = responseCurves(iCurve).data; % Temporary for conveinence
+            % normalize by simple division
+            temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+            % Compute arc-length between each data point
+            segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+                + (temp(1:end-1,2)-temp(2:end,2)).^2);
+            alen = cumsum([0;segments]);
+            
+            responseCurves(iCurve).data(:,3) = alen;
+            % Compute normalized arc-length
+            responseCurves(iCurve).maxAlen = max(alen);
+            responseCurves(iCurve).data(:,4) = ...
+                alen./responseCurves(iCurve).maxAlen;
+            % Determine max [x,y] data
+            tempMax = max(temp,[],1);
+            responseCurves(iCurve).xNormMax = tempMax(1);
+            responseCurves(iCurve).yNormMax = tempMax(2);
+            % Remove spurious duplicates
+            [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+            responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+        end
+        
+    % Weighted averages and standard deviations later on. Nothing here. 
+    otherwise
+
+end
+
+
 
 %% Resample response curve based on normalized arc-length
 for iCurve=1:length(responseCurves)
@@ -103,14 +192,39 @@ end
 charAvg = zeros(nvArg.nResamplePoints,2);
 stdevData = zeros(nvArg.nResamplePoints,2);
 
-for iPoints=1:nvArg.nResamplePoints
-    clear temp; % probably cleaner way to do this. 
-    % collect specific point from each data curve
-    for iCurve=1:length(responseCurves)
-        temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
-    end
-    charAvg(iPoints,:) = mean(temp,1);
-    stdevData(iPoints,:) = std(temp,1);
+switch nvArg.HandleOutliers
+    case 'WeightedAverage'
+        weightFact = ...
+            median(abs([responseCurves.medianDev])) * nvArg.DeviationFact;
+        for iCurve = 1:length(responseCurves)
+            responseCurves(iCurve).weight = max(0,...
+                (weightFact - abs(responseCurves(iCurve).medianDev))/weightFact);
+        end
+        
+        for iPoints = 1:nvArg.nResamplePoints
+            clear temp;
+            for iCurve = 1:length(responseCurves)
+                temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+            end
+            charAvg(iPoints,:) = sum([responseCurves.weight]'.*temp())./...
+                sum([responseCurves.weight]);
+            nNonZero = length(responseCurves([responseCurves.weight]'>0));
+            stdevData(iPoints,:) = sqrt(...
+                sum([responseCurves.weight]'.*(charAvg(iPoints,:)-temp).^2)./...
+                ((nNonZero-1)/nNonZero)./sum([responseCurves.weight]));
+        end
+        
+    % Any other outlier handling
+    otherwise
+        for iPoints=1:nvArg.nResamplePoints
+            clear temp; % probably cleaner way to do this.
+            % collect specific point from each data curve
+            for iCurve=1:length(responseCurves)
+                temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+            end
+            charAvg(iPoints,:) = mean(temp,1);
+            stdevData(iPoints,:) = std(temp,1);
+        end
 end
 
 %% Diagnostic: Plot normalized curves and St. Devs. 
@@ -122,7 +236,8 @@ if strcmp(nvArg.Diagnostics,'on')
     for iCurve=1:length(responseCurves)
         plot(responseCurves(iCurve).normalizedCurve(:,2),...
             responseCurves(iCurve).normalizedCurve(:,3),'.-',...
-            'color',cmap(iCurve,:))
+            'color',cmap(iCurve,:),...
+            'DisplayName',responseCurves(iCurve).specId)
     end
     xlabel('x-data')
     ylabel('y-data')
@@ -154,6 +269,7 @@ if strcmp(nvArg.Diagnostics,'on')
     ylabel('y-data')
     title('Average and St.Dev. of Y-Data')
 end
+
 
 %% Create Corridors
 % Initialize corridors
@@ -233,4 +349,6 @@ if strcmp(nvArg.Diagnostics,'on')
     plot(innerCorr(:,1),innerCorr(:,2),'.-','DisplayName','Inner Corr',...
         'LineWidth',2.0,'MarkerSize',16,'Color',[89,60,31]./255)
 end
+
+processedCurveData = responseCurves;
    
