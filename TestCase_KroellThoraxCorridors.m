@@ -1,5 +1,5 @@
 fclose all;
-% close all;
+close all;
 clear;
 clc;
 
@@ -314,7 +314,7 @@ load('Data/Kroell 1971 Thorax Response/KroellThoraxResponse_1971.mat')
     'nResamplePoints', nResample,...
     'NormalizeCurves', 'on',...
     'handleOutliers',  'WeightedAverage',...
-    'DeviationFact',   3);
+    'DeviationFact',   2);
 
 % Hackish way to clean up corridors by removing self-intersections of INNER
 % ONLY
