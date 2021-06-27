@@ -1,4 +1,4 @@
-%% ARCGen - Arc-length Response Corridor Generator - Ellisoid-Based
+%% ARCGen - Arc-length Response Corridor Generator - Rectangle-Based
 % 
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           13-Jun-2021
@@ -171,8 +171,6 @@ switch nvArg.HandleOutliers
     otherwise
 
 end
-
-
 
 %% Resample response curve based on normalized arc-length
 for iCurve=1:length(responseCurves)
