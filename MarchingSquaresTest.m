@@ -10,6 +10,7 @@ ellipses = [0,0,1,2;
             0.7,1.7,2,1;
             -0.5,1.5,1,1;
             -2,-1,1.5,2;
+            1.65, 0.75, 0.5, 1.5;
             ];
 
 xlims = [-4,4];
@@ -229,57 +230,104 @@ scatter([vertices(:,1);vertices(:,3)],[vertices(:,2);vertices(:,4)])
 
 % comet(vertices(:,1),vertices(:,2))
 
+figure(); hold on
+for iEllip = 1:size(ellipses,1)
+    ellipse(ellipses(iEllip,3),ellipses(iEllip,4),0,ellipses(iEllip,1),ellipses(iEllip,2))
+end
+
 %% start sorting algorithm
 % find the minimum y-value
-[min,ind] = min(vertices(:,2));
+[min,lastIndex] = min(vertices(:,2));
 
 % initalize first point
-envelop = vertices(ind,1:2);
+envelope = vertices(lastIndex,1:2);
 % add second point from same array index
-envelop = [envelop; vertices(ind,3:4)];
-% indexUsed = zeros(size(vertices,1),1);
-% indexUsed(ind) = 1;
-indicesUsed = ind;
+envelope = [envelope; vertices(lastIndex,3:4)];
+indexUsed = zeros(size(vertices,1),1);
+indexUsed(lastIndex) = 1;
 
-for i = 2:2*size(vertices,1)
-
-% find the repeat of the 2nd point
-col1 = find(all(vertices(:,1:2)==repmat(envelop(end,:),size(vertices,1),1),2))
-if size(col1,1)>1
-    indexExtra = find(any(col1'==indicesUsed,2));
-    indexExtra = find(col1~=indicesUsed(indexExtra));
-    col1 = col1(indexExtra);
-end
+exitFlag = 0;   % Set exit flag fudge
+% Go though all vertices looking for the next connecting face
+for iVerts = 2:size(vertices,1)
+    % For an enclosed polygon, all lines share vertices
+    % Find the all repeated vertices
+    foundVert12 = find(all(ismembertol(vertices(:,1:2), envelope(end,:)), 2));
+    foundVert34 = find(all(ismembertol(vertices(:,3:4), envelope(end,:)), 2));
     
-col2 = find(all(vertices(:,3:4)==repmat(envelop(end,:),size(vertices,1),1),2))
-if size(col2,1)>1
-    indexExtra = find(any(col2'==indicesUsed,2));
-    indexExtra = find(col2~=indicesUsed(indexExtra));
-    col2 = col2(indexExtra);
-end
-
-if isempty(col1)
-    col1 = indicesUsed(end)
-end
-if isempty(col2)
-    col2 = indicesUsed(end)
-end
-
-if any(repmat(col1,size(indicesUsed,1),1) == indicesUsed)
-    envelop = [envelop;vertices(col2,1:2)];
-    indicesUsed = [indicesUsed;col2];
-elseif any(repmat(col2,size(indicesUsed,1),1)==indicesUsed)
-    envelop = [envelop;vertices(col1,3:4)];
-    indicesUsed = [indicesUsed;col1];
-end
-
-end
-
-
-figure(); hold on
-comet(envelop(:,1),envelop(:,2))
-plot(envelop(:,1),envelop(:,2),'x-','MarkerSize',12)
-scatter([vertices(:,1);vertices(:,3)],[vertices(:,2);vertices(:,4)])
-
+    % there will only ever be two points, distributed between foundVert12
+    % and foundVert34. Select the vertex which is NOT the same as the last
+    % vertex. This indices a new line segments. 
+    if ~isempty(foundVert12)
+        for iInd = 1:length(foundVert12)
+            if foundVert12(iInd) ~= lastIndex
+                envelope = [envelope; vertices(foundVert12(iInd),3:4)];
+                lastIndex = foundVert12(iInd);
+                indexUsed(lastIndex) = 1;
+                exitFlag = 1;
+                break;
+            end
+        end
+    end
     
+    % Fudge to ensure that there is an infinate loop after the first
+    % condition statement. 
+    if exitFlag == 1
+        exitFlag = 0;
+        continue;
+    end
+        
+    if ~isempty(foundVert34)
+        for iInd = 1:length(foundVert34)
+            if foundVert34(iInd) ~= lastIndex
+                envelope = [envelope; vertices(foundVert34(iInd),1:2)];
+                lastIndex = foundVert34(iInd);
+                indexUsed(lastIndex) = 1;
+                break;
+            end
+        end
+    end
+    
+end
+% plot(envelop(:,1),envelop(:,2),'x-','MarkerSize',12)
+comet(envelope(:,1),envelope(:,2))
+line1 = [-3, -3; -2, -2];
+line2 = [2, 2; 3, 3];
+line(line1(:,1),line1(:,2))
+line(line2(:,1),line2(:,2))
+
+%Find intercepts to divide line using Poly
+[xInt,yInt,iIntLow] = polyxpoly(envelope(:,1),envelope(:,2),line1(:,1),line1(:,2))
+plot(xInt,yInt,'*k')
+plot(envelope(iIntLow,1),envelope(iIntLow,2),'sg')
+iIntLow = iIntLow(1);
+
+[xInt,yInt,iIntUpp] = polyxpoly(envelope(:,1),envelope(:,2),line2(:,1),line2(:,2))
+plot(xInt,yInt,'*k')
+plot(envelope(iIntUpp,1),envelope(iIntUpp,2),'sg')
+iIntUpp = iIntUpp(1);
+
+% To find inner or outer corridors, first determine if polygon is clockwise
+% or counter-clockwise. Then, based on which index is large, separate out
+% inner and outer corridor based on which intercept index is larger. 
+if ispolycw(envelope(:,1),envelope(:,2))
+    if iIntLow > iIntUpp
+        outerCorr = [envelope(iIntLow:end,:);envelope(1:iIntUpp,:)];
+        innerCorr = envelope(iIntUpp:iIntLow,:);
+    else
+        outerCorr = envelope(iIntLow:iIntUpp,:);
+        innerCorr = [envelope(iIntUpp:end,:);envelope(1:iIntLow,:)];
+    end
+else
+    if iIntLow > iIntUpp
+        innerCorr = [envelope(iIntLow:end,:);envelope(1:iIntUpp,:)];
+        outerCorr = envelope(iIntUpp:iIntLow,:);
+    else
+        innerCorr = envelope(iIntLow:iIntUpp,:);
+        outerCorr = [envelope(iIntUpp:end,:);envelope(1:iIntLow,:)];
+    end
+end
+
+plot(innerCorr(:,1),innerCorr(:,2),'o-r')
+plot(outerCorr(:,1),outerCorr(:,2),'o-m')
+
 
