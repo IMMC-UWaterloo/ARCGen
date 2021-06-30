@@ -16,7 +16,7 @@ ellipses = [0,0,1,2;
 xlims = [-4,4];
 ylims = [-4,4];
 
-nPts = 50;
+nPts = 100;
 
 [xx,yy] = meshgrid(linspace(xlims(1),xlims(2),nPts),...
     linspace(ylims(1),ylims(2),nPts));
@@ -52,7 +52,7 @@ colormap(cmap);
 pScat = scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
 axis equal
 
-vertices = [];
+lineSegments = []; % Initalize line segments
 for iPt = 1:(nPts-1)  % Rows (y-axis)
     for jPt = 1:(nPts-1)   % Columns (x-axis)
         % Cell values
@@ -75,7 +75,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                 % No Vertices
             case 2
                 % South-West
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
                     xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];
                 
@@ -84,7 +84,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);         
             case 3
                 % West-North
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
                     interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
                 
@@ -93,7 +93,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 4
                 % North-South
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt) ...
                     interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
                 
@@ -103,7 +103,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 5
                 % North-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
                     xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
                 
@@ -112,7 +112,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);           
             case 6  % Ambiguous
                 % South-West
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
                     xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];
                 
@@ -121,7 +121,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2); 
                 
                 % North-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
                     xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
                 
@@ -130,7 +130,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);      
             case 7
                 % West-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [xx(iPt,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt)),...
                     xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
                 
@@ -140,7 +140,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);  
             case 8
                 % South - East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
                     xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
                 
@@ -149,7 +149,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);    
             case 9
                 % South - East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
                     xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
                 
@@ -158,7 +158,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 10
                 % West-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [xx(iPt,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt)),...
                     xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
                 
@@ -167,7 +167,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);  
             case 11 % Ambiguous
                 % West-North
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
                     interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
                 
@@ -176,7 +176,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
                 
                 % South-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
                     xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
                 
@@ -185,7 +185,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 12
                 % North-East
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
                     xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
                 
@@ -194,7 +194,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2); 
             case 13
                 % North-South
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt) ...
                     interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
                 
@@ -204,7 +204,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 14
                 % West-North
-                vertices = [vertices;
+                lineSegments = [lineSegments;
                     [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
                     interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
                 
@@ -213,7 +213,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
                     'color',[0,0,0],'LineWidth',2);
             case 15
                 % South-West
-                vertices = [vertices;...
+                lineSegments = [lineSegments;...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
                     xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];
                 
@@ -226,7 +226,7 @@ for iPt = 1:(nPts-1)  % Rows (y-axis)
     end
 end
 
-scatter([vertices(:,1);vertices(:,3)],[vertices(:,2);vertices(:,4)])
+scatter([lineSegments(:,1);lineSegments(:,3)],[lineSegments(:,2);lineSegments(:,4)])
 
 % comet(vertices(:,1),vertices(:,2))
 
@@ -237,22 +237,22 @@ end
 
 %% start sorting algorithm
 % find the minimum y-value
-[min,lastIndex] = min(vertices(:,2));
+[min,lastIndex] = min(lineSegments(:,2));
 
 % initalize first point
-envelope = vertices(lastIndex,1:2);
+envelope = lineSegments(lastIndex,1:2);
 % add second point from same array index
-envelope = [envelope; vertices(lastIndex,3:4)];
-indexUsed = zeros(size(vertices,1),1);
+envelope = [envelope; lineSegments(lastIndex,3:4)];
+indexUsed = zeros(size(lineSegments,1),1);
 indexUsed(lastIndex) = 1;
 
 exitFlag = 0;   % Set exit flag fudge
 % Go though all vertices looking for the next connecting face
-for iVerts = 2:size(vertices,1)
+for iVerts = 2:size(lineSegments,1)
     % For an enclosed polygon, all lines share vertices
     % Find the all repeated vertices
-    foundVert12 = find(all(ismembertol(vertices(:,1:2), envelope(end,:)), 2));
-    foundVert34 = find(all(ismembertol(vertices(:,3:4), envelope(end,:)), 2));
+    foundVert12 = find(all(ismembertol(lineSegments(:,1:2), envelope(end,:)), 2));
+    foundVert34 = find(all(ismembertol(lineSegments(:,3:4), envelope(end,:)), 2));
     
     % there will only ever be two points, distributed between foundVert12
     % and foundVert34. Select the vertex which is NOT the same as the last
@@ -260,7 +260,7 @@ for iVerts = 2:size(vertices,1)
     if ~isempty(foundVert12)
         for iInd = 1:length(foundVert12)
             if foundVert12(iInd) ~= lastIndex
-                envelope = [envelope; vertices(foundVert12(iInd),3:4)];
+                envelope = [envelope; lineSegments(foundVert12(iInd),3:4)];
                 lastIndex = foundVert12(iInd);
                 indexUsed(lastIndex) = 1;
                 exitFlag = 1;
@@ -279,7 +279,7 @@ for iVerts = 2:size(vertices,1)
     if ~isempty(foundVert34)
         for iInd = 1:length(foundVert34)
             if foundVert34(iInd) ~= lastIndex
-                envelope = [envelope; vertices(foundVert34(iInd),1:2)];
+                envelope = [envelope; lineSegments(foundVert34(iInd),1:2)];
                 lastIndex = foundVert34(iInd);
                 indexUsed(lastIndex) = 1;
                 break;
