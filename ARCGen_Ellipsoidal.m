@@ -476,21 +476,25 @@ end
 % first or last two points. But we also need to include a section of the
 % char. avg. curve as the corridor may not extend to start of char. arv. 
 
+aLenInterval = 1./nvArg.nResamplePoints;
 indexLength = round(0.2*length(charAvg));
-lineStart = [charAvg(1,1)-1.0*max(stdevData(:,1)), ...
-    interp1(charAvg(1:2,1),charAvg(1:2,2),charAvg(1,1)-1.0*max(stdevData(:,1)),'linear','extrap');
+
+lineStart = [...
+    interp1([0,aLenInterval],charAvg(1:2,1), -0.05,'linear','extrap'),...
+    interp1([0,aLenInterval],charAvg(1:2,2), -0.05,'linear','extrap');...
     charAvg(1:indexLength,:)];
+    
 lineEnd =  [charAvg(end-indexLength:end,:);...
-    charAvg(end,1)+1.0*max(stdevData(:,1)), ...
-    interp1(charAvg(end-1:end,1),charAvg(end-1:end,2),charAvg(end,1)+1.0*max(stdevData(:,1)),'linear','extrap')];
+    interp1([1-aLenInterval,1],charAvg(end-1:end,1), 1.05,'linear','extrap'),...
+    interp1([1-aLenInterval,1],charAvg(end-1:end,2), 1.05,'linear','extrap')];
 
 %Find intercepts to divide line using Poly
 [~,~,iIntStart] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineStart(:,1),lineStart(:,2))
+    lineStart(:,1),lineStart(:,2));
 iIntStart = iIntStart(1);
 
 [~,~,iIntEnd] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineEnd(:,1),lineEnd(:,2))
+    lineEnd(:,1),lineEnd(:,2));
 iIntEnd = iIntEnd(1);
 
 % To divide inner or outer corridors, first determine if polygon is clockwise
@@ -521,7 +525,7 @@ if strcmp(nvArg.Diagnostics,'on')
     % Scatter plot for debug
     cmap = cbrewer2('set2',2);
     colormap(cmap);
-    scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
+%     scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
 
     % plot ellipses based on standard deviation
     for iPoint=1:nvArg.nResamplePoints
@@ -538,13 +542,12 @@ if strcmp(nvArg.Diagnostics,'on')
             'DisplayName',responseCurves(iCurve).specId,...
             'Color', cmap(iCurve,:))
     end
-%     plot(charAvg(:,1),charAvg(:,2),'.-k','DisplayName','Char Avg',...
-%         'LineWidth',2.0,'MarkerSize',16)
+    plot(charAvg(:,1),charAvg(:,2),'.-k','DisplayName','Char Avg',...
+        'LineWidth',2.0,'MarkerSize',16)
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
-    
 end
 
 processedCurveData = responseCurves;
