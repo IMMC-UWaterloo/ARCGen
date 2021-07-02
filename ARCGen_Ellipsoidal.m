@@ -267,17 +267,43 @@ if strcmp(nvArg.Diagnostics,'on')
     xlabel('Normalized Arc-length')
     ylabel('y-data')
     title('Average and St.Dev. of Y-Data')
+    
+    % Plot ellipses    
+    figure('Name','Overlaid Ellipses and Corridors'); hold on;
+    % Scatter plot for debug
+    cmap = cbrewer2('set2',2);
+    colormap(cmap);
+%     scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
+
+    % plot ellipses based on standard deviation
+    for iPoint=1:nvArg.nResamplePoints
+        ellipse(stdevData(iPoint,1).*nvArg.EllipseKFact,...
+            stdevData(iPoint,2).*nvArg.EllipseKFact,0,...
+            charAvg(iPoint,1), charAvg(iPoint,2),...
+            0.8.*[1,1,1]);
+    end
+
+    cmap = lines(length(responseCurves));
+    for iCurve=1:length(responseCurves)
+        plot(responseCurves(iCurve).data(:,1),...
+            responseCurves(iCurve).data(:,2),'-',...
+            'DisplayName',responseCurves(iCurve).specId,...
+            'Color', cmap(iCurve,:))
+    end
 end
 
 %% Begin marching squares algorithm
 
 % Create grids based on upper and lower of characteristic average plus 120%
 % of maximum standard deviation
+scaleFact = 1.5*nvArg.EllipseKFact;
 [xx,yy] = meshgrid(...
-    linspace(min(charAvg(:,1)) - 2.0*max(stdevData(:,1)), ...
-        max(charAvg(:,1)) + 2.0*max(stdevData(:,1)), nvArg.CorridorRes),...
-    linspace(min(charAvg(:,2)) - 2.0*max(stdevData(:,2)), ...
-        max(charAvg(:,2)) + 2.0*max(stdevData(:,2)), nvArg.CorridorRes));
+    linspace(min(charAvg(:,1)) - scaleFact*max(stdevData(:,1)), ...
+        max(charAvg(:,1)) + scaleFact*max(stdevData(:,1)),...
+        nvArg.CorridorRes),...
+    linspace(min(charAvg(:,2)) - scaleFact*max(stdevData(:,2)), ...
+        max(charAvg(:,2)) + scaleFact*max(stdevData(:,2)),...
+        nvArg.CorridorRes));
 zz = zeros(size(xx));   % initalize grid of ellipse values
 
 % For each grid point, find the max of each standard deviation ellipse
@@ -415,7 +441,8 @@ end
 % Segments need to be sorted in order to create a proper polygon. 
 % Start sorting algorithm in the "middle" of the polygon, under the
 % assumption that there is fewer orphans in the middle. 
-lastIndex = round(0.5*size(lineSegments,1));
+% lastIndex = round(0.5*size(lineSegments,1));
+lastIndex = 100;
 
 % Use the index of lowest y-value to seed the envelope. Envelope is
 % specifically vertices, not line segments. All vertices are duplicated in
@@ -521,27 +548,8 @@ end
 
 %% Draw Ellipses for debug
 if strcmp(nvArg.Diagnostics,'on')
-    figure(); hold on;
-    % Scatter plot for debug
-    cmap = cbrewer2('set2',2);
-    colormap(cmap);
-%     scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
-
-    % plot ellipses based on standard deviation
-    for iPoint=1:nvArg.nResamplePoints
-        ellipse(stdevData(iPoint,1).*nvArg.EllipseKFact,...
-            stdevData(iPoint,2).*nvArg.EllipseKFact,0,...
-            charAvg(iPoint,1), charAvg(iPoint,2),...
-            0.8.*[1,1,1]);
-    end
+    % Plot corridors, avgs
     plot(envelope(:,1),envelope(:,2),'x-b','LineWidth',2.0)
-    cmap = lines(length(responseCurves));
-    for iCurve=1:length(responseCurves)
-        plot(responseCurves(iCurve).data(:,1),...
-            responseCurves(iCurve).data(:,2),'-',...
-            'DisplayName',responseCurves(iCurve).specId,...
-            'Color', cmap(iCurve,:))
-    end
     plot(charAvg(:,1),charAvg(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
