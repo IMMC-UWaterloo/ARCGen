@@ -3,22 +3,29 @@ close all;
 clear;
 clc;
 
-nResample = 100;
-smfact = 5;
-
+nResample = 250;
+nCorrPts = 200;
 xlimits = [0,0.01];
 ylimits = [0,1200];
 
-%% Generate Force-Disp corridors without magnitude normalization
-% Load data
+%% Filter force-displacement data
 load('Data/cRDCB FA2 Force-Disp/cRDCB_FA2_ForceDisp.mat')
+smFact = 10;
+for iCurve = 1:size(responseCurves,2)
+    responseCurves(iCurve).data = [...
+        smooth(responseCurves(iCurve).data(:,1),smFact),...
+        smooth(responseCurves(iCurve).data(:,2),smFact)];
+end
 
+%% Generate Force-Disp corridors without magnitude normalization
 [charAvgNoNorm, innCorrNoNorm, outCorrNoNorm,proCurveDataNoNorm] = ...
-    ARCGen_Rectangle(responseCurves,...
+    ARCGen_Ellipse(responseCurves,...
     'Diagnostics', 'off',...
     'nResamplePoints', nResample,...
     'NormalizeCurves', 'off',...
-    'handleOutliers', 'off');
+    'handleOutliers', 'off',...
+    'CorridorRes',      nCorrPts,....
+    'EllipseKFact',     1.0);
 
 figure('Name','Force-Disp - No Normalization');
 hold on;
@@ -38,7 +45,7 @@ pCorr = plot(innCorrNoNorm(:,1),innCorrNoNorm(:,2),'.-','MarkerSize',16,...
     'LineWidth',2.0,'Color',[255, 213, 79]./255);
 p = plot(outCorrNoNorm(:,1),outCorrNoNorm(:,2),'.-','MarkerSize',16,...
     'DisplayName','Outer',...
-    'LineWidth',2.0,'Color',[255, 213, 79]./255);
+    'LineWidth',2.0,'Color',[196, 147, 0]./255);
 
 legend([pExp,pAvg,pCorr], 'Location', 'Best')
 xlim(xlimits)
@@ -48,15 +55,14 @@ xlabel('Deflection (mm)')
 ylabel('Force (N)')
 
 %% Generate Force-Disp corridors WITH magnitude normalization
-% Load data
-load('Data/cRDCB FA2 Force-Disp/cRDCB_FA2_ForceDisp.mat')
-
 [charAvgNorm, innCorrNorm, outCorrNorm,proCurveDataNorm] = ...
-    ARCGen_Rectangle(responseCurves,...
-    'Diagnostics', 'off',...
+    ARCGen_Ellipse(responseCurves,...
+    'Diagnostics', 'on',...
     'nResamplePoints', nResample,...
     'NormalizeCurves', 'on',...
-    'handleOutliers', 'off');
+    'handleOutliers', 'off',...
+    'CorridorRes',      nCorrPts,....
+    'EllipseKFact',     1.0);
 
 figure('Name','Force-Disp - Normalization');
 hold on;
@@ -67,7 +73,6 @@ for iPlot = 1:length(responseCurves)
         'LineWidth',1,'Color',0.7.*[1,1,1]);
 end
 
-
 pAvg = plot(charAvgNorm(:,1),charAvgNorm(:,2),'.-',...
     'DisplayName','Char. Avg. - ARCGen','MarkerSize',16,...
     'LineWidth',2.5,'Color',[0,0,0]);
@@ -76,7 +81,7 @@ pCorr = plot(innCorrNorm(:,1),innCorrNorm(:,2),'.-','MarkerSize',16,...
     'LineWidth',2.0,'Color',[255, 213, 79]./255);
 p = plot(outCorrNorm(:,1),outCorrNorm(:,2),'.-','MarkerSize',16,...
     'DisplayName','Outer',...
-    'LineWidth',2.0,'Color',[255, 213, 79]./255);
+    'LineWidth',2.0,'Color',[196, 147, 0]./255);
 
 legend([pExp,pAvg,pCorr], 'Location', 'Best')
 xlim(xlimits)
@@ -85,27 +90,28 @@ grid on
 xlabel('Deflection (mm)')
 ylabel('Force (N)')
 
+%% Filter force-displacement data
+load('Data/cRDCB FA2 Trac-Sep/cRdcb_FA2_TrapezoidTracSep.mat')
+smFact = 1;
+for iCurve = 1:size(responseCurves,2)
+    responseCurves(iCurve).data = [...
+        smooth(responseCurves(iCurve).data(:,1),smFact),...
+        smooth(responseCurves(iCurve).data(:,2),smFact)];
+end
+
 %% Generate Trac-Sep corridors without magnitude normalization
 % Load data
 xlimits = [0,0.01];
 ylimits = [0,40];
-load('Data/cRDCB FA2 Trac-Sep/cRdcb_FA2_TrapezoidTracSep.mat')
 
 [charAvgNoNorm, innCorrNoNorm, outCorrNoNorm,proCurveDataNoNorm] = ...
-    ARCGen_Rectangle(responseCurves,...
+    ARCGen_Ellipse(responseCurves,...
     'Diagnostics', 'off',...
     'nResamplePoints', nResample,...
     'NormalizeCurves', 'off',...
-    'handleOutliers', 'off');
-
-% Hackish way to clean up corridors by removing self-intersections
-[~,~,segs] = selfintersect(innCorrNoNorm(:,1),innCorrNoNorm(:,2));
-numbers = [1:1:length(innCorrNoNorm)]';
-for iSeg = 1:size(segs,1)
-    indices(:,iSeg) = and(numbers>segs(iSeg,1), numbers<segs(iSeg,2));
-end
-innCorrNoNorm = innCorrNoNorm(~any(indices,2),:);
-clear indices
+    'handleOutliers', 'off',...
+    'CorridorRes',      nCorrPts,....
+    'EllipseKFact',     1);
 
 figure('Name','Traction-Seeparation - No Normalization');
 hold on;
@@ -124,7 +130,7 @@ pCorr = plot(innCorrNoNorm(:,1),innCorrNoNorm(:,2),'.-','MarkerSize',16,...
     'LineWidth',2.0,'Color',[255, 213, 79]./255);
 p = plot(outCorrNoNorm(:,1),outCorrNoNorm(:,2),'.-','MarkerSize',16,...
     'DisplayName','Outer',...
-    'LineWidth',2.0,'Color',[255, 213, 79]./255);
+    'LineWidth',2.0,'Color',[196, 147, 0]./255);
 
 legend([pExp,pAvg,pCorr], 'Location', 'Best')
 xlim(xlimits)
@@ -137,23 +143,15 @@ ylabel('Traction (N)')
 % Load data
 xlimits = [0,0.01];
 ylimits = [0,40];
-load('Data/cRDCB FA2 Trac-Sep/cRdcb_FA2_TrapezoidTracSep.mat')
 
 [charAvgNorm, innCorrNorm, outCorrNorm,proCurveDataNorm] = ...
-    ARCGen_Rectangle(responseCurves,...
+    ARCGen_Ellipse(responseCurves,...
     'Diagnostics', 'off',...
     'nResamplePoints', nResample,...
     'NormalizeCurves', 'on',...
-    'handleOutliers', 'off');
-
-% Hackish way to clean up corridors by removing self-intersections
-[~,~,segs] = selfintersect(innCorrNorm(:,1),innCorrNorm(:,2));
-numbers = [1:1:length(innCorrNorm)]';
-for iSeg = 1:size(segs,1)
-    indices(:,iSeg) = and(numbers>segs(iSeg,1), numbers<segs(iSeg,2));
-end
-innCorrNorm = innCorrNorm(~any(indices,2),:);
-clear indices
+    'handleOutliers', 'off',...
+    'CorridorRes',      nCorrPts,....
+    'EllipseKFact',     1);
 
 figure('Name','Traction-Seeparation - Normalization');
 hold on;
@@ -172,7 +170,7 @@ pCorr = plot(innCorrNorm(:,1),innCorrNorm(:,2),'.-','MarkerSize',16,...
     'LineWidth',2.0,'Color',[255, 213, 79]./255);
 p = plot(outCorrNorm(:,1),outCorrNorm(:,2),'.-','MarkerSize',16,...
     'DisplayName','Outer',...
-    'LineWidth',2.0,'Color',[255, 213, 79]./255);
+    'LineWidth',2.0,'Color',[196, 147, 0]./255);
 
 legend([pExp,pAvg,pCorr], 'Location', 'Best')
 xlim(xlimits)
