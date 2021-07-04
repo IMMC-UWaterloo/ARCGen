@@ -464,58 +464,92 @@ end
 
 % After the marching squares algorithm, line segments are not sorted.
 % Segments need to be sorted in order to create a proper polygon. 
+%
+% One issues with very small ellipses is orphan envelopes can occur. This
+% sorting algorithm attempts to find all envelopes. Final corridor
+% extraction is only done on the largest envelope. Largest is defined by
+% the number of vertices. 
+%
 % Start sorting algorithm in the "middle" of the polygon, under the
-% assumption that there is fewer orphans in the middle. 
+% assumption that there is fewer orphans in the middle. But this algorithm
+% should be fine if it is an orphan. 
+iEnvelope = 1;
+indexUsed = zeros(size(lineSegments,1),1);
 lastIndex = round(0.5*size(lineSegments,1));
 
-% Use the index of lowest y-value to seed the envelope. Envelope is
-% specifically vertices, not line segments. All vertices are duplicated in
-% line segments, assuming no orphans. 
-envelope = lineSegments(lastIndex,1:2);
-% Add second vertex, as it uses the same line segment
-envelope = [envelope; lineSegments(lastIndex,3:4)];
-indexUsed = zeros(size(lineSegments,1),1);
-indexUsed(lastIndex) = 1;
-
-exitFlag = 0;   % Set exit flag fudge
-% Go though all vertices looking for the next connecting face
-for iVerts = 2:size(lineSegments,1)
-    % For an enclosed polygon, all lines share vertices
-    % Find the all repeated vertices
-    foundVert12 = find(all(ismembertol(lineSegments(:,1:2), envelope(end,:)), 2));
-    foundVert34 = find(all(ismembertol(lineSegments(:,3:4), envelope(end,:)), 2));
+while ~all(indexUsed==1)
+    % Use the index of lowest y-value to seed the envelope. Envelope is
+    % specifically vertices, not line segments. All vertices are duplicated in
+    % line segments, assuming no orphans.
+    envelope = lineSegments(lastIndex,1:2);
+    % Add second vertex, as it uses the same line segment
+    envelope = [envelope; lineSegments(lastIndex,3:4)];
+    indexUsed(lastIndex) = 1;
     
-    % there will only ever be two points, distributed between foundVert12
-    % and foundVert34. Select the vertex which is NOT the same as the last
-    % vertex. This indices a new line segments. 
-    if ~isempty(foundVert12)
-        for iInd = 1:length(foundVert12)
-            if foundVert12(iInd) ~= lastIndex
-                envelope = [envelope; lineSegments(foundVert12(iInd),3:4)];
-                lastIndex = foundVert12(iInd);
-                indexUsed(lastIndex) = 1;
-                exitFlag = 1;
-                break;
-            end
-        end
-    end
-    
-    % Fudge to ensure that there is an infinate loop after the first
-    % condition statement. 
-    if exitFlag == 1
-        exitFlag = 0;
-        continue;
-    end
+    exitFlag = 0;   % Set exit flag fudge
+    % Go though all vertices looking for the next connecting face
+    for iVerts = 2:size(lineSegments,1)
+        % For an enclosed polygon, all lines share vertices
+        % Find the all repeated vertices
+        foundVert12 = find(all(ismembertol(lineSegments(:,1:2), envelope(end,:)), 2));
+        foundVert34 = find(all(ismembertol(lineSegments(:,3:4), envelope(end,:)), 2));
         
-    if ~isempty(foundVert34)
-        for iInd = 1:length(foundVert34)
-            if foundVert34(iInd) ~= lastIndex
-                envelope = [envelope; lineSegments(foundVert34(iInd),1:2)];
-                lastIndex = foundVert34(iInd);
-                indexUsed(lastIndex) = 1;
-                break;
+        % there will only ever be two points, distributed between foundVert12
+        % and foundVert34. Select the vertex which is NOT the same as the last
+        % vertex. This indices a new line segments.
+        if ~isempty(foundVert12)
+            for iInd = 1:length(foundVert12)
+                if foundVert12(iInd) ~= lastIndex
+                    envelope = [envelope; lineSegments(foundVert12(iInd),3:4)];
+                    lastIndex = foundVert12(iInd);
+                    indexUsed(lastIndex) = 1;
+                    exitFlag = 1;
+                    break;
+                end
             end
         end
+        
+        % Fudge to ensure that there is an infinate loop after the first
+        % condition statement.
+        if exitFlag == 1
+            exitFlag = 0;
+            continue;
+        end
+        
+        if ~isempty(foundVert34)
+            for iInd = 1:length(foundVert34)
+                if foundVert34(iInd) ~= lastIndex
+                    envelope = [envelope; lineSegments(foundVert34(iInd),1:2)];
+                    lastIndex = foundVert34(iInd);
+                    indexUsed(lastIndex) = 1;
+                    break;
+                end
+            end
+        end
+    end
+    
+    envelope = unique(envelope,'stable','rows');
+    individualEnvelopes{iEnvelope} = envelope;
+    iEnvelope = iEnvelope+1;
+    clear envelope;
+    lastIndex = find(indexUsed==0,1);
+    % if isempty(lastIndex)
+    %     break
+    % end
+end
+
+% Choose the biggest envelope, based on number of indices. 
+for iEnv = 1:length(individualEnvelopes)
+    envSize(iEnv) = size(individualEnvelopes{iEnv},1);
+end
+[~,ind] = max(envSize);
+envelope = individualEnvelopes{ind};
+
+% For debugging, plot all envelopes
+if strcmp(nvArg.Diagnostics,'on')
+    for iEnv = 1:length(individualEnvelopes)
+            plot(individualEnvelopes{iEnv}(:,1),...
+            individualEnvelopes{iEnv}(:,2),'.-b','LineWidth',1.0)   
     end
 end
 
@@ -573,14 +607,12 @@ end
 %% Draw Ellipses for debug
 if strcmp(nvArg.Diagnostics,'on')
     % Plot corridors, avgs
-    scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
-    plot(envelope(:,1),envelope(:,2),'x-b','LineWidth',2.0)    
+%     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
 end
-
 processedCurveData = responseCurves;
 end  % End main function
 
