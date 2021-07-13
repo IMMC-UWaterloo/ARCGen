@@ -2,8 +2,8 @@
 % 
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           13-Jun-2021
-% Updated By:     
-% Date:           
+% Updated By:     D.C. Hartlen, M.ASc, EIT     
+% Date:           13-Jul-2021           
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % This script pre-processes input curves which will be subsequently used
@@ -16,7 +16,24 @@
 % columns. The user can set which two column indices are used as the input
 % x and y data. 
 %
-% Acutal response corridor fitting is accomplished in a separate script
+% Actual corridor generation is performed in a separate script
+%
+% Corridor generation scripts requires that input data be organized using a
+% structure array. The structure array must have two entries per response
+% curve
+%   + data: [n,2] array of x-y data
+%   + specId: A character string used as a specimen identifier. 
+%
+% This script has four options to specify "specId" in a programatic
+% fashion. This is defined using "flagAlterSpecID".
+%   + "No": "specId" is taken directly from the file name of the .csv
+%   + "RemoveUnderscore": "specId" is the file name of the .csv with
+%        underscores replaced with spaces
+%   + "Squential": "specId" is defined sequential with "sequentialBase"
+%        used as a prefix
+%   + "Manual": "specId" is defined using the cell array "manualSpecIds".
+%        "manualSpecId" must be the same length as .csv file being 
+%        processed. 
 
 %% Initialization
 fclose all;

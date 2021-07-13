@@ -2,6 +2,7 @@ fclose all;
 close all;
 clear;
 clc;
+addpath('ThirdPartyFunctions')
 
 nResample = 100;
 smfact = 1;
@@ -21,7 +22,7 @@ outCorrLobdell = [outCorrLobdell(:,1)+0.5, outCorrLobdell(:,2)-150];
 load('Data/Kroell 1971 Thorax Response/KroellThoraxResponse_1971.mat')
 figure('Name','No Normalization');
 hold on;
-cmap = cbrewer2('Paired',length(responseCurves))
+cmap = cbrewer2('Paired',length(responseCurves));
 for iPlot = 1:length(responseCurves)
     plot(responseCurves(iPlot).data(:,1),...
         responseCurves(iPlot).data(:,2),...

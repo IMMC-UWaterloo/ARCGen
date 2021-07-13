@@ -1,12 +1,100 @@
-%% ARCGen - Arc-length Response Corridor Generator - Ellisoid-Based
+%% ARCGen_Ellipse - Arc-length Response Corridor Generator - Ellise-Based
 % 
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           27-Jun-2021
-% Updated By:     
-% Date:           
+% Updated By:     D.C. Hartlen, M.ASc, EIT
+% Date:           13-Jul-2021
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
-% TODO: add description and syntax
+% ARCGen, short for Arc-length Response Corridor Generation, provides
+% automated calculation of a characteristic average and response corridors
+% on input curves regardless of if said curves are non-monotonic or
+% hystertic. This is accomplished by re-parameterizing input curves based
+% on arc-length. Corridors are extracted using a marching squares
+% algorithm.
+%
+% This function has one mandatory input, four outputs, and many optional
+% inputs. Optional inputs are defined using name-value pair arguments. 
+%
+% Usage notes: It is common to see errors when running this function if the
+% number of resampling points or corridor extraction grid is too sparse.
+% This is error also occurs if standard deviation in a particular direction
+% is too small for subsequent ellipses to overlap significantly. Typically, 
+% this problem will result in an error pointing to a line 650+. A quick fix
+% is to keep bumping up 'nResamplePoints' and 'CorridorRes' until the error
+% goes array. Turning 'Diagnostics' 'on' can help identify these issues. 
+%
+% MANDATORY INPUTS:
+% -----------------
+% responseCurves: A [nCurve,2] structured array consisting of the following
+%       entries. Entries are case-senstive
+%   + data: an [n,2] array containing ordered x-y data
+%   + specId: character array containing an identifier for each curve
+% 
+% OPTIONAL INPUTS:
+% ----------------
+% nResamplePoints: integer defining the number of points used to
+%       re-parameterize input curves. Default: 100. 
+% CorridorRes: integeer defining the number of grid points used for the
+%       marching squares algorithm. The sampling grid for the marching
+%       squares algorithm extends 120% of extreme corridors. This parameter
+%       defines the number of points along each side of the grid. 
+%       Default: 100. It is common to increase this significantly. 
+% NormalizeCurves: character arry used to turn on curve normalization.
+%       Options: 'on' (default), 'off'
+% EllipseKFact: float used to scale the major and minor axis of the
+%       ellipses used for corridor generation. This value corrisponds to 
+%       the square root of the chi-squared CDF. Default: 1.0 (creates 
+%       corridors one standard deviation along the x and y axes)
+% Diagnostics: character array used to activate diagnostic plots. Useful
+%       for debugging errors. Options: 'on', 'off' (default)
+% HandleOutliers: character array used to impliment a variety of methods to
+%       handle curves of extraneous length. This is a fairly experimental
+%       feature and functionality is not fully guaranteed. Generally,
+%       outliers are defined based on arc-length.
+%       Options are:
+%   + 'off': (default) no outlier handling is performed
+%   + 'CropToShortest': All input curves are cropped to the shortest
+%           arc-length. Not useful if one curve is much shorter than the
+%           others. 
+%   + 'RemoveExtraneous': Removes curves which are significantly different
+%           in length based on median deviation. Specifiying this option 
+%           also requires one to define 'DeviationFact'. Curves that are 
+%           have an absolute deviation large than  'DevationFact' * 
+%           (mediand deviation) are not used for calculation of average or 
+%           corridors. 
+%   + 'CropToDeviationFactor' Crops curves which are significantly longer
+%           than the median length. Specifying this option requires one to
+%           define 'DeviationFact'. Curves longer than 'DevationFact' * 
+%           (mediand deviation) are croped to this value. Curves which are
+%           shorter than median are not effected at all. 
+%   + 'WeightedAverage': Characteristic average and corridors are computed
+%           using a weighted mean and standard devation of input curves
+%           based on how far the arc-length of each curve is from the
+%           median values. Specifying this option also requires one to
+%           define 'DeviationFact'. Curves beyond 'DeviationFact'*(median
+%           arc-length) are given a weight of zero. All other curves are
+%           given a weight of zero to one based on how close thier average
+%           is to the median arc-length. Developer's Note: I thought this
+%           was a clever solution. It doesn't work as well as I thought. 
+%
+% OUTPUTS:
+% --------
+% charAvg: an [nResamplePoints,2] array containing the computed
+%       characteristic average.
+% innerCorr: an [n,2] array containing points defining the inner corridor
+% outerCorr: an [n,2] array containing points defining the outer corridor
+% processedCurveData: a structure array that outputs processed curves and
+%       some basic statistics
+%
+% Note on outputted corridors: corridors are not uniformly sampled due to
+% the limitations of the marching squares algorithm used to extract
+% corridors in an automated fashion. Additionally, it is common that the
+% corridors do not extend to the start of the curves, as the standard
+% devaition at thes start of curves is typically too small to provide
+% sufficeint ellipse overlap for the marching squares algorithm to extract
+% continuous corridors. These corridors can be resampled and extended after
+% extraction. 
 
 function [charAvg, innerCorr, outerCorr, processedCurveData] = ...
     ARCGen_Ellipse(responseCurves,varargin)
@@ -17,7 +105,7 @@ addParameter(nvArgObj, 'nResamplePoints',   100);
 addParameter(nvArgObj, 'Diagnostics',       'off');
 addParameter(nvArgObj, 'InvalidCurves',     []);
 addParameter(nvArgObj, 'CorridorScaleFact', 1);
-addParameter(nvArgObj, 'NormalizeCurves',   'off');
+addParameter(nvArgObj, 'NormalizeCurves',   'on');
 addParameter(nvArgObj, 'HandleOutliers',    'off');
 addParameter(nvArgObj, 'DeviationFact',     2);
 addParameter(nvArgObj, 'EllipseKFact',      1);
@@ -299,7 +387,7 @@ end
 
 % Create grids based on upper and lower of characteristic average plus 120%
 % of maximum standard deviation
-scaleFact = 1.5*nvArg.EllipseKFact;
+scaleFact = 1.2*nvArg.EllipseKFact;
 [xx,yy] = meshgrid(...
     linspace(min(charAvg(:,1)) - scaleFact*max(stdevData(:,1)), ...
         max(charAvg(:,1)) + scaleFact*max(stdevData(:,1)),...
