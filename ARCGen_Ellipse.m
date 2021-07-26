@@ -691,11 +691,27 @@ else
     end
 end
 
+% Resample corridors. Use nResamplePoints. Because corridors are
+% non-monotonic, arc-length method discussed above is used. 
+% Start with inner corridor. Magnitudes are being normalized.
+segments = sqrt(((innerCorr(1:end-1,1)-innerCorr(2:end,1))./max(innerCorr(:,1))).^2 ...
+    + ((innerCorr(1:end-1,2)-innerCorr(2:end,2))./max(innerCorr(:,2))).^2);
+alen = cumsum([0;segments]);
+alenResamp = linspace(0,max(alen),nvArg.nResamplePoints)';
+innerCorr = [interp1(alen,innerCorr(:,1),alenResamp),...
+    interp1(alen,innerCorr(:,2),alenResamp)];
+% Outer Corridor
+segments = sqrt(((outerCorr(1:end-1,1)-outerCorr(2:end,1))./max(outerCorr(:,1))).^2 ...
+    + ((outerCorr(1:end-1,2)-outerCorr(2:end,2))./max(outerCorr(:,2))).^2);
+alen = cumsum([0;segments]);
+alenResamp = linspace(0,max(alen),nvArg.nResamplePoints)';
+outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
+    interp1(alen,outerCorr(:,2),alenResamp)];
 
 %% Draw Ellipses for debug
 if strcmp(nvArg.Diagnostics,'on')
     % Plot corridors, avgs
-%     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
+    scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
