@@ -1,2 +1,5 @@
 *.asv
 00_Reports/
+00_Releases/
+Data/cRdcb_FA4
+TestCase_cRdcb_FA4.m
