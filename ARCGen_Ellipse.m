@@ -110,6 +110,7 @@ addParameter(nvArgObj, 'HandleOutliers',    'off');
 addParameter(nvArgObj, 'DeviationFact',     2);
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
+addParameter(nvArgObj, 'minCorridorWidth',    0); 
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -312,6 +313,18 @@ switch nvArg.HandleOutliers
             charAvg(iPoints,:) = mean(temp,1);
             stdevData(iPoints,:) = std(temp,1);
         end
+end
+
+%% Clamp minimum corridor width. Disabled if 'minCorridorWidth' == 0
+% Include influence of corridor scaling factor 'EllipseKFact'
+if nvArg.minCorridorWidth > 0
+    % Replace any stDevData below maximum st.dev. * 'minCorridorWidth'
+    index = stdevData <...
+        (nvArg.minCorridorWidth .* max(stdevData) .* nvArg.EllipseKFact);
+    stdevData(index(:,1),1) = (nvArg.minCorridorWidth .* nvArg.EllipseKFact...
+        .* max(stdevData(:,1)));
+    stdevData(index(:,2),2) = (nvArg.minCorridorWidth .* nvArg.EllipseKFact...
+        .* max(stdevData(:,2)));
 end
 
 %% Diagnostic: Plot normalized curves and St. Devs. 
