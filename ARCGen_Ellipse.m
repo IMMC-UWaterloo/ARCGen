@@ -48,6 +48,10 @@
 %       corridors one standard deviation along the x and y axes)
 % Diagnostics: character array used to activate diagnostic plots. Useful
 %       for debugging errors. Options: 'on', 'off' (default)
+% MinCorridorWidth: Factor used to enforce a minimum corridor width. Any
+%       st.dev. less than 'MinCorridorFactor'*max(st.dev.) is replaced with
+%       'MinCorridorFactor'*max(st.dev.). x & y axes are handled
+%       separately. A value of 0 disables forcing minimum width.
 % HandleOutliers: character array used to impliment a variety of methods to
 %       handle curves of extraneous length. This is a fairly experimental
 %       feature and functionality is not fully guaranteed. Generally,
@@ -110,7 +114,7 @@ addParameter(nvArgObj, 'HandleOutliers',    'off');
 addParameter(nvArgObj, 'DeviationFact',     2);
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
-addParameter(nvArgObj, 'minCorridorWidth',    0); 
+addParameter(nvArgObj, 'MinCorridorWidth',    0); 
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -315,15 +319,15 @@ switch nvArg.HandleOutliers
         end
 end
 
-%% Clamp minimum corridor width. Disabled if 'minCorridorWidth' == 0
+%% Clamp minimum corridor width. Disabled if 'MinCorridorWidth' == 0
 % Include influence of corridor scaling factor 'EllipseKFact'
-if nvArg.minCorridorWidth > 0
-    % Replace any stDevData below maximum st.dev. * 'minCorridorWidth'
+if nvArg.MinCorridorWidth > 0
+    % Replace any stDevData below maximum st.dev. * 'MinCorridorWidth'
     index = stdevData <...
-        (nvArg.minCorridorWidth .* max(stdevData) .* nvArg.EllipseKFact);
-    stdevData(index(:,1),1) = (nvArg.minCorridorWidth .* nvArg.EllipseKFact...
+        (nvArg.MinCorridorWidth .* max(stdevData) .* nvArg.EllipseKFact);
+    stdevData(index(:,1),1) = (nvArg.MinCorridorWidth .* nvArg.EllipseKFact...
         .* max(stdevData(:,1)));
-    stdevData(index(:,2),2) = (nvArg.minCorridorWidth .* nvArg.EllipseKFact...
+    stdevData(index(:,2),2) = (nvArg.MinCorridorWidth .* nvArg.EllipseKFact...
         .* max(stdevData(:,2)));
 end
 
