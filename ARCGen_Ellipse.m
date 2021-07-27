@@ -48,6 +48,10 @@
 %       corridors one standard deviation along the x and y axes)
 % Diagnostics: character array used to activate diagnostic plots. Useful
 %       for debugging errors. Options: 'on', 'off' (default)
+% MinCorridorWidth: Factor used to enforce a minimum corridor width. Any
+%       st.dev. less than 'MinCorridorFactor'*max(st.dev.) is replaced with
+%       'MinCorridorFactor'*max(st.dev.). x & y axes are handled
+%       separately. A value of 0 disables forcing minimum width.
 % HandleOutliers: character array used to impliment a variety of methods to
 %       handle curves of extraneous length. This is a fairly experimental
 %       feature and functionality is not fully guaranteed. Generally,
@@ -110,6 +114,7 @@ addParameter(nvArgObj, 'HandleOutliers',    'off');
 addParameter(nvArgObj, 'DeviationFact',     2);
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
+addParameter(nvArgObj, 'MinCorridorWidth',    0); 
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -312,6 +317,18 @@ switch nvArg.HandleOutliers
             charAvg(iPoints,:) = mean(temp,1);
             stdevData(iPoints,:) = std(temp,1);
         end
+end
+
+%% Clamp minimum corridor width. Disabled if 'MinCorridorWidth' == 0
+% Include influence of corridor scaling factor 'EllipseKFact'
+if nvArg.MinCorridorWidth > 0
+    % Replace any stDevData below maximum st.dev. * 'MinCorridorWidth'
+    index = stdevData <...
+        (nvArg.MinCorridorWidth .* max(stdevData) .* nvArg.EllipseKFact);
+    stdevData(index(:,1),1) = (nvArg.MinCorridorWidth .* nvArg.EllipseKFact...
+        .* max(stdevData(:,1)));
+    stdevData(index(:,2),2) = (nvArg.MinCorridorWidth .* nvArg.EllipseKFact...
+        .* max(stdevData(:,2)));
 end
 
 %% Diagnostic: Plot normalized curves and St. Devs. 
@@ -691,11 +708,27 @@ else
     end
 end
 
+% Resample corridors. Use nResamplePoints. Because corridors are
+% non-monotonic, arc-length method discussed above is used. 
+% Start with inner corridor. Magnitudes are being normalized.
+segments = sqrt(((innerCorr(1:end-1,1)-innerCorr(2:end,1))./max(innerCorr(:,1))).^2 ...
+    + ((innerCorr(1:end-1,2)-innerCorr(2:end,2))./max(innerCorr(:,2))).^2);
+alen = cumsum([0;segments]);
+alenResamp = linspace(0,max(alen),nvArg.nResamplePoints)';
+innerCorr = [interp1(alen,innerCorr(:,1),alenResamp),...
+    interp1(alen,innerCorr(:,2),alenResamp)];
+% Outer Corridor
+segments = sqrt(((outerCorr(1:end-1,1)-outerCorr(2:end,1))./max(outerCorr(:,1))).^2 ...
+    + ((outerCorr(1:end-1,2)-outerCorr(2:end,2))./max(outerCorr(:,2))).^2);
+alen = cumsum([0;segments]);
+alenResamp = linspace(0,max(alen),nvArg.nResamplePoints)';
+outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
+    interp1(alen,outerCorr(:,2),alenResamp)];
 
 %% Draw Ellipses for debug
 if strcmp(nvArg.Diagnostics,'on')
     % Plot corridors, avgs
-%     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
+    scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
