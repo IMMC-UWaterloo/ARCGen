@@ -155,13 +155,13 @@ elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
             responseCurves(iCurve).data(indices(peakInd),2)];
         responseCurves(iCurve).alignInd = indices(peakInd);
     end
-%     % Debug plot for showing peaks
-%     figure(); hold on;
-%     for iCurve = 1:length(responseCurves)
-%         plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
-%         plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
-%         
-%     end
+    % Debug plot for showing peaks
+    figure(); hold on;
+    for iCurve = 1:length(responseCurves)
+        plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
+        plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
+        
+    end
     % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
     % Normalize magnitudes
     for iCurve = 1:length(responseCurves)
@@ -213,20 +213,21 @@ elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
 elseif strcmp(nvArg.NormalizeCurves,'NegativeYPeak')
     % Find absolute largest peak in Y data
     for iCurve = 1:length(responseCurves)
-        [pks,indices] = findpeaks(-responseCurves(iCurve).data(:,2));
+        [pks,indices] = findpeaks(-responseCurves(iCurve).data(:,2),...
+            'MinPeakProminence', 0.05.*max(-responseCurves(iCurve).data(:,2)));
         [~,peakInd] = max(abs(pks));
         responseCurves(iCurve).alignPt = ...
             [responseCurves(iCurve).data(indices(peakInd),1),...
             responseCurves(iCurve).data(indices(peakInd),2)];
         responseCurves(iCurve).alignInd = indices(peakInd);
     end
-%     % Debug plot for showing peaks
-%     figure(); hold on;
-%     for iCurve = 1:length(responseCurves)
-%         plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
-%         plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
-%         
-%     end
+    % Debug plot for showing peaks
+    figure(); hold on;
+    for iCurve = 1:length(responseCurves)
+        plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
+        plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
+        
+    end
     % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
     % Normalize magnitudes
     for iCurve = 1:length(responseCurves)
@@ -483,6 +484,7 @@ if strcmp(nvArg.Diagnostics,'on')
     end
     xlabel('x-data')
     ylabel('y-data')
+    legend()
     title('Arc-length Discretized Normalized Curves')
     % Plot normalized x data against arc-length with st. dev.
     subplot(2,2,3); hold on;
