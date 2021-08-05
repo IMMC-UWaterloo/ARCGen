@@ -155,13 +155,6 @@ elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
             responseCurves(iCurve).data(indices(peakInd),2)];
         responseCurves(iCurve).alignInd = indices(peakInd);
     end
-    % Debug plot for showing peaks
-    figure(); hold on;
-    for iCurve = 1:length(responseCurves)
-        plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
-        plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
-        
-    end
     % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
     % Normalize magnitudes
     for iCurve = 1:length(responseCurves)
@@ -220,13 +213,6 @@ elseif strcmp(nvArg.NormalizeCurves,'NegativeYPeak')
             [responseCurves(iCurve).data(indices(peakInd),1),...
             responseCurves(iCurve).data(indices(peakInd),2)];
         responseCurves(iCurve).alignInd = indices(peakInd);
-    end
-    % Debug plot for showing peaks
-    figure(); hold on;
-    for iCurve = 1:length(responseCurves)
-        plot(responseCurves(iCurve).data(:,1),responseCurves(iCurve).data(:,2))
-        plot(responseCurves(iCurve).alignPt(1),responseCurves(iCurve).alignPt(2),'kx')
-        
     end
     % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
     % Normalize magnitudes
@@ -535,14 +521,22 @@ if strcmp(nvArg.Diagnostics,'on')
     % Plot normalized x,y data
     subplot(2,2,[1,2]); hold on;
     for iCurve=1:length(responseCurves)
-        plot(responseCurves(iCurve).normalizedCurve(:,2),...
+        pCurve(iCurve) = plot(responseCurves(iCurve).normalizedCurve(:,2),...
             responseCurves(iCurve).normalizedCurve(:,3),'.-',...
             'color',cmap(iCurve,:),...
-            'DisplayName',responseCurves(iCurve).specId)
+            'DisplayName',responseCurves(iCurve).specId);
+        if (strcmp(nvArg.NormalizeCurves,'off') || ...
+                strcmp(nvArg.NormalizeCurves,'on'))
+            continue
+        else
+            plot(responseCurves(iCurve).data(responseCurves(iCurve).alignInd,1),...
+            responseCurves(iCurve).data(responseCurves(iCurve).alignInd,2),...
+            'kx','LineWidth',2.0)
+        end
     end
     xlabel('x-data')
     ylabel('y-data')
-    legend()
+    legend(pCurve)
     title('Arc-length Discretized Normalized Curves')
     % Plot normalized x data against arc-length with st. dev.
     subplot(2,2,3); hold on;
