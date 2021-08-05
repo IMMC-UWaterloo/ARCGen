@@ -313,8 +313,65 @@ elseif strcmp(nvArg.NormalizeCurves,'on')
         [~,index,~] = unique(responseCurves(iCurve).data(:,4));
         responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
     end
+    
+% Manually defined curve alignment
+elseif (length(nvArg.NormalizeCurves)==length(responseCurves))
+    % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
+    % Normalize magnitudes
+    for iCurve = 1:length(responseCurves)
+        tempMin = min(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMin = tempMin(1);
+        responseCurves(iCurve).yMin = tempMin(2);
+        tempMax = max(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMax = tempMax(1);
+        responseCurves(iCurve).yMax = tempMax(2);
+        % Transfer alignment array to response curve array
+        responseCurves(iCurve).alignInd = nvArg.NormalizeCurves(iCurve);
+    end
+    % Decision: group mean? group max? I think mean.
+    %     xNorm = mean([responseCurves.xMax]);
+    %     yNorm = mean([responseCurves.yMax]);
+    xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
+    yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
+    % Normalize the axis of each curve, then do arc-length calcs
+    for iCurve = 1:length(responseCurves)
+        temp = responseCurves(iCurve).data; % Temporary for conveinence
+        % % normalize by simple division
+        % temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+        % Normalize by scale and shift
+        temp = [temp(:,1)./(xBound(2)-xBound(1)),...
+            temp(:,2)./(yBound(2)-yBound(1))];
+        % Compute arc-length between each data point
+        segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+            + (temp(1:end-1,2)-temp(2:end,2)).^2);
+        alen = cumsum([0;segments]);
+        % Append cumulative arc length to data array
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        % Compute normalized arc-length
+        responseCurves(iCurve).maxAlen = max(alen);
+        
+        tempInd = responseCurves(iCurve).alignInd;
+        scaledAlen = [...
+            (alen(1:tempInd)-alen(1))./(alen(tempInd)-alen(1));
+            1+(alen(tempInd+1:end)-alen(tempInd+1))./(alen(end)-alen(tempInd+1))...
+            ];
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
+            scaledAlen];
+        % Determine max [x,y] data
+        tempMax = max(abs(temp),[],1);
+        responseCurves(iCurve).xNormMax = tempMax(1);
+        responseCurves(iCurve).yNormMax = tempMax(2);
+        % Remove spurious duplicates
+        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+    end
+    
+% Error handling if manually defined array is wrong length or empty
+elseif isempty(nvArg.NormalizeCurves) || (length(nvArg.NormalizeCurves)~=length(responseCurves))
+    error('Array for manual normalization incorrectly defined')
+% Error handling if NormalizeCurves argument is not defined correctly
 else
-    error('Input Normalization Method Not Recognized')
+    error('Normalization method not  recognized')
 end
 
 % Compute mean and median arc-length deviation
@@ -331,6 +388,7 @@ for iCurve=1:length(responseCurves)
 end
 
 %% Begin handling of outliers
+% TODO: redo outlier handling due to revision of normalization
 switch nvArg.HandleOutliers
     case 'RemoveExtraneous'
         % Use median absolute deviation
