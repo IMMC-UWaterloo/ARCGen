@@ -145,7 +145,7 @@ if strcmp(nvArg.NormalizeCurves,'off')
     end
     
 elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
-    % Find absolute largest peak in Y data
+    % Find largest positive peak in Y data
     for iCurve = 1:length(responseCurves)
         [pks,indices] = findpeaks(responseCurves(iCurve).data(:,2),...
             'MinPeakProminence', 0.05.*max(responseCurves(iCurve).data(:,2)));
@@ -166,8 +166,6 @@ elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
         responseCurves(iCurve).yMax = tempMax(2);
     end
     % Decision: group mean? group max? I think mean.
-    %     xNorm = mean([responseCurves.xMax]);
-    %     yNorm = mean([responseCurves.yMax]);
     xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
     yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
     % Normalize the axis of each curve, then do arc-length calcs
@@ -204,7 +202,7 @@ elseif strcmp(nvArg.NormalizeCurves,'PositiveYPeak')
     end
 
 elseif strcmp(nvArg.NormalizeCurves,'NegativeYPeak')
-    % Find absolute largest peak in Y data
+    % Find largest negative peak in Y data
     for iCurve = 1:length(responseCurves)
         [pks,indices] = findpeaks(-responseCurves(iCurve).data(:,2),...
             'MinPeakProminence', 0.05.*max(-responseCurves(iCurve).data(:,2)));
@@ -225,8 +223,6 @@ elseif strcmp(nvArg.NormalizeCurves,'NegativeYPeak')
         responseCurves(iCurve).yMax = tempMax(2);
     end
     % Decision: group mean? group max? I think mean.
-    %     xNorm = mean([responseCurves.xMax]);
-    %     yNorm = mean([responseCurves.yMax]);
     xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
     yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
     % Normalize the axis of each curve, then do arc-length calcs
@@ -261,6 +257,120 @@ elseif strcmp(nvArg.NormalizeCurves,'NegativeYPeak')
         [~,index,~] = unique(responseCurves(iCurve).data(:,4));
         responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
     end
+
+elseif strcmp(nvArg.NormalizeCurves,'PositiveXPeak')
+    % Find largest positive peak in X data
+    for iCurve = 1:length(responseCurves)
+        [pks,indices] = findpeaks(responseCurves(iCurve).data(:,1),...
+            'MinPeakProminence', 0.05.*max(responseCurves(iCurve).data(:,1)));
+        [~,peakInd] = max(abs(pks));
+        responseCurves(iCurve).alignPt = ...
+            [responseCurves(iCurve).data(indices(peakInd),1),...
+            responseCurves(iCurve).data(indices(peakInd),2)];
+        responseCurves(iCurve).alignInd = indices(peakInd);
+    end
+    % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
+    % Normalize magnitudes
+    for iCurve = 1:length(responseCurves)
+        tempMin = min(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMin = tempMin(1);
+        responseCurves(iCurve).yMin = tempMin(2);
+        tempMax = max(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMax = tempMax(1);
+        responseCurves(iCurve).yMax = tempMax(2);
+    end
+    % Decision: group mean? group max? I think mean.
+    xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
+    yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
+    % Normalize the axis of each curve, then do arc-length calcs
+    for iCurve = 1:length(responseCurves)
+        temp = responseCurves(iCurve).data; % Temporary for conveinence
+        % % normalize by simple division
+        % temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+        % Normalize by scale and shift
+        temp = [temp(:,1)./(xBound(2)-xBound(1)),...
+            temp(:,2)./(yBound(2)-yBound(1))];
+        % Compute arc-length between each data point
+        segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+            + (temp(1:end-1,2)-temp(2:end,2)).^2);
+        alen = cumsum([0;segments]);
+        % Append cumulative arc length to data array
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        % Compute normalized arc-length
+        responseCurves(iCurve).maxAlen = max(alen);
+        
+        tempInd = responseCurves(iCurve).alignInd;
+        scaledAlen = [...
+            (alen(1:tempInd)-alen(1))./(alen(tempInd)-alen(1));
+            1+(alen(tempInd+1:end)-alen(tempInd+1))./(alen(end)-alen(tempInd+1))...
+            ];
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
+            scaledAlen];
+        % Determine max [x,y] data
+        tempMax = max(abs(temp),[],1);
+        responseCurves(iCurve).xNormMax = tempMax(1);
+        responseCurves(iCurve).yNormMax = tempMax(2);
+        % Remove spurious duplicates
+        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+    end
+
+elseif strcmp(nvArg.NormalizeCurves,'NegativeXPeak')
+    % Find largest negative peak in Y data
+    for iCurve = 1:length(responseCurves)
+        [pks,indices] = findpeaks(-responseCurves(iCurve).data(:,1),...
+            'MinPeakProminence', 0.05.*max(-responseCurves(iCurve).data(:,1)));
+        [~,peakInd] = max(abs(pks));
+        responseCurves(iCurve).alignPt = ...
+            [responseCurves(iCurve).data(indices(peakInd),1),...
+            responseCurves(iCurve).data(indices(peakInd),2)];
+        responseCurves(iCurve).alignInd = indices(peakInd);
+    end
+    % Calculate arc-length, then normalize [0,1] to peak, [1,2] to terminus
+    % Normalize magnitudes
+    for iCurve = 1:length(responseCurves)
+        tempMin = min(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMin = tempMin(1);
+        responseCurves(iCurve).yMin = tempMin(2);
+        tempMax = max(responseCurves(iCurve).data,[],1);
+        responseCurves(iCurve).xMax = tempMax(1);
+        responseCurves(iCurve).yMax = tempMax(2);
+    end
+    % Decision: group mean? group max? I think mean.
+    xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
+    yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
+    % Normalize the axis of each curve, then do arc-length calcs
+    for iCurve = 1:length(responseCurves)
+        temp = responseCurves(iCurve).data; % Temporary for conveinence
+        % % normalize by simple division
+        % temp = [temp(:,1)./xNorm, temp(:,2)./yNorm];
+        % Normalize by scale and shift
+        temp = [temp(:,1)./(xBound(2)-xBound(1)),...
+            temp(:,2)./(yBound(2)-yBound(1))];
+        % Compute arc-length between each data point
+        segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
+            + (temp(1:end-1,2)-temp(2:end,2)).^2);
+        alen = cumsum([0;segments]);
+        % Append cumulative arc length to data array
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        % Compute normalized arc-length
+        responseCurves(iCurve).maxAlen = max(alen);
+        
+        tempInd = responseCurves(iCurve).alignInd;
+        scaledAlen = [...
+            (alen(1:tempInd)-alen(1))./(alen(tempInd)-alen(1));
+            1+(alen(tempInd+1:end)-alen(tempInd+1))./(alen(end)-alen(tempInd+1))...
+            ];
+        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
+            scaledAlen];
+        % Determine max [x,y] data
+        tempMax = max(abs(temp),[],1);
+        responseCurves(iCurve).xNormMax = tempMax(1);
+        responseCurves(iCurve).yNormMax = tempMax(2);
+        % Remove spurious duplicates
+        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
+        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+    end    
     
 % Perform magnitude normalization based on bounding box
 elseif strcmp(nvArg.NormalizeCurves,'on')
