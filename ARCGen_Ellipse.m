@@ -612,6 +612,46 @@ switch nvArg.HandleOutliers
         end
 end
 
+%% Test: determine correlation of average against response
+% Assemble signal matrices prior to correlation
+signalX = zeros(nvArg.nResamplePoints, length(responseCurves));
+signalY = zeros(nvArg.nResamplePoints, length(responseCurves));
+for i=1:length(responseCurves)
+    signalX(:,i) = responseCurves(i).normalizedCurve(:,2);
+    signalY(:,i) = responseCurves(i).normalizedCurve(:,3);
+end
+[meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+
+fprintf('Corr before Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),corrArray(2),meanCorrScore);
+
+% perform optimization. Use fmincon
+optWarpArray = fmincon(@(x)warppingObjective(x,responseCurves,nvArg),...
+    0.5.*ones(length(responseCurves),1),...
+    [], [],...
+    [], [],...
+    0.2.*ones(length(responseCurves),1), 0.8.*ones(length(responseCurves),1))
+
+% Using optimal warpping locations compute warpped signals
+[warppedSignals, signalX, signalY] = warpArcLength(optWarpArray,responseCurves,nvArg);
+% Compute correlation score
+[meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+fprintf('Corr after Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),corrArray(2),meanCorrScore);
+
+% Replace 'normalizedCurve' in 'responseCurve' and compute average and
+% standard deviation. 
+for iCurve=1:length(responseCurves)
+    responseCurves(iCurve).normalizedCurve = warppedSignals{iCurve};
+end
+for iPoints=1:nvArg.nResamplePoints
+    clear temp; % probably cleaner way to do this.
+    % collect specific point from each data curve
+    for iCurve=1:length(responseCurves)
+        temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+    end
+    charAvg(iPoints,:) = mean(temp,1);
+    stdevData(iPoints,:) = std(temp,1);
+end
+
 %% Clamp minimum corridor width. Disabled if 'MinCorridorWidth' == 0
 % Include influence of corridor scaling factor 'EllipseKFact'
 if nvArg.MinCorridorWidth > 0
@@ -1039,8 +1079,84 @@ end
 processedCurveData = responseCurves;
 end  % End main function
 
-% helper function to perform linear interpolation to an isovalue of 1 only
+%% helper function to perform linear interpolation to an isovalue of 1 only
 function val = interpVal(x1, y1, x2, y2)
     val = x1+(x2-x1)*(1-y1)/(y2-y1);
 end
    
+%% Function used to evaluate correlation score between signals
+function [meanCorrScore, corrScoreArray] = evalCorrScore(signalsX,signalsY)
+% Correlation score taken from the work of Nusholtz et al. (2009)
+% Compute cross-correlation matrix of all signals to each other
+corrMatX = corrcoef(signalsX);
+corrMatY = corrcoef(signalsY);
+% Convert matrices to a single score
+nCurve = size(corrMatX,2);
+corrScoreX = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatX))-nCurve);
+corrScoreY = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatY))-nCurve);
+% Compute a single metric for optimization purposes. Using simple mean
+meanCorrScore = 0.5*(corrScoreX+corrScoreY);
+corrScoreArray = [corrScoreX, corrScoreY];
+end
+
+%% Function used to warp arc-length
+function [warppedSignals, signalsX, signalsY]...
+    = warpArcLength(warpArray,responseCurves,nvArg)
+% Initialize matrices
+signalsX = zeros(nvArg.nResamplePoints, length(responseCurves));
+signalsY = zeros(nvArg.nResamplePoints, length(responseCurves));
+warppedSignals = cell(length(responseCurves),1);
+for iCurve = 1:length(responseCurves)
+    % Assign responseCurve data array to matrix for brevity
+    curve = responseCurves(iCurve).data;
+    % Determine arc-length bounds
+    maxAlen = responseCurves(iCurve).maxAlen;
+    
+    % Set landmark in original arc-length. Default to 0.5
+    lmPt = 0.5*maxAlen;
+    
+    % compute shifted landmark arc-length based on optArray
+    warpedPt = warpArray(iCurve)*maxAlen;
+    
+    % Construct warping function using SLM. This warps lmAlen to shiftAlen.
+    % Use warping fuction to map computed arc-lengths onto the shifted
+    % system.
+    warppingFnc = slmengine([0,lmPt,maxAlen],[0,warpedPt,maxAlen],...
+        'degree',1,'knots',[0,lmPt,maxAlen],'increasing','on',...
+        'extrapolation','constant','plot','off');
+    warppedAlen = slmeval(curve(:,3),warppingFnc,0);
+    
+    % Normalize warped arc-length
+    normWarppedAlen = warppedAlen./maxAlen;
+    
+    % Now uniformly resample normalzied arc-length
+    resamNormWarppedAlen = linspace(0,1, nvArg.nResamplePoints)';
+    resampX = interp1(normWarppedAlen, curve(:,1), resamNormWarppedAlen,'linear','extrap');
+    resampY = interp1(normWarppedAlen, curve(:,2), resamNormWarppedAlen,'linear','extrap');
+    % Assign to array for correlation calc
+    signalsX(:,iCurve) = resampX;
+    signalsY(:,iCurve) = resampY;
+    
+    % Assemble a cell array containing arrays of resampled signals. Similar
+    % to 'normalizedCurve' in 'responseCurves' structure
+    warppedSignals{iCurve} = [resamNormWarppedAlen,resampX,resampY];
+end
+
+end
+
+%% Optimization Objective for curve registration
+function optScore = warppingObjective(optimWarp,responseCurves,nvArg)
+
+% Perform warping
+[~, signalsX, signalsY] = warpArcLength(optimWarp,responseCurves,nvArg);
+% % Determine characteristic Average
+% charAvgX = mean(signalsX,2);
+% charAvgY = mean(signalsY,2);
+% signalsX = [charAvgX,signalsX];
+% signalsY = [charAvgY,signalsY];
+% % Compute correlation score
+[corrScore, ~] = evalCorrScore(signalsX,signalsY);
+% corrScore is a maximization goal. Turn into a minimization goal
+optScore = 1-corrScore;
+
+end
