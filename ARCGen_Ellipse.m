@@ -624,12 +624,32 @@ end
 
 fprintf('Corr before Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),corrArray(2),meanCorrScore);
 
-% perform optimization. Use fmincon
-optWarpArray = fmincon(@(x)warppingObjective(x,responseCurves,nvArg),...
-    0.5.*ones(length(responseCurves),1),...
+% % Optimize warp points based on a fixed 0.5 landmark 
+% optWarpArray = fmincon(@(x)warppingObjective(x,responseCurves,nvArg),...
+%     0.5.*ones(length(responseCurves),1),...
+%     [], [],...
+%     [], [],...
+%     0.2.*ones(length(responseCurves),1), 0.8.*ones(length(responseCurves),1))
+
+% % Optimize all warp points and landmarks simultaneously
+% optWarpArray = fmincon(@(x)warppingObjective_Landmark(x,responseCurves,nvArg),...
+%     0.5.*ones(2*length(responseCurves),1),...
+%     [], [],...
+%     [], [],...
+%     0.2.*ones(2*length(responseCurves),1), 0.8.*ones(2*length(responseCurves),1))
+% nCurve = length(responseCurves);
+% optWarpArray = [optWarpArray(1:nCurve),optWarpArray(nCurve+1:end)];
+
+% Optimize landmarks and a single floating warp point
+% Optimize all warp points and landmarks simultaneously
+optWarpArray = fmincon(@(x)warppingObjective_Landmark(x,responseCurves,nvArg),...
+    [0.5.*ones(length(responseCurves),1);0.5],...
     [], [],...
     [], [],...
-    0.2.*ones(length(responseCurves),1), 0.8.*ones(length(responseCurves),1))
+    [0.2.*ones(length(responseCurves),1);0.5], [0.8.*ones(length(responseCurves),1);0.5])
+nCurve = length(responseCurves);
+% optWarpArray = [optWarpArray(1:nCurve),optWarpArray(end).*ones(nCurve,1)];
+optWarpArray = [optWarpArray(end).*ones(nCurve,1),optWarpArray(1:nCurve)];
 
 % Using optimal warpping locations compute warpped signals
 [warppedSignals, signalX, signalY] = warpArcLength(optWarpArray,responseCurves,nvArg);
@@ -1102,6 +1122,16 @@ end
 %% Function used to warp arc-length
 function [warppedSignals, signalsX, signalsY]...
     = warpArcLength(warpArray,responseCurves,nvArg)
+% warpArcLength: if two column, 1st column is warp location, 2nd is
+% landmark
+
+if size(warpArray,2) == 1
+    lmArray = 0.5.*ones(size(warpArray,1),1);
+else
+    lmArray = warpArray(:,2);
+    warpArray = warpArray(:,1);
+end
+
 % Initialize matrices
 signalsX = zeros(nvArg.nResamplePoints, length(responseCurves));
 signalsY = zeros(nvArg.nResamplePoints, length(responseCurves));
@@ -1113,7 +1143,7 @@ for iCurve = 1:length(responseCurves)
     maxAlen = responseCurves(iCurve).maxAlen;
     
     % Set landmark in original arc-length. Default to 0.5
-    lmPt = 0.5*maxAlen;
+    lmPt = lmArray(iCurve)*maxAlen;
     
     % compute shifted landmark arc-length based on optArray
     warpedPt = warpArray(iCurve)*maxAlen;
@@ -1122,7 +1152,7 @@ for iCurve = 1:length(responseCurves)
     % Use warping fuction to map computed arc-lengths onto the shifted
     % system.
     warppingFnc = slmengine([0,lmPt,maxAlen],[0,warpedPt,maxAlen],...
-        'degree',1,'knots',[0,lmPt,maxAlen],'increasing','on',...
+        'degree',3,'knots',[0,lmPt,maxAlen],'increasing','on',...
         'extrapolation','constant','plot','off');
     warppedAlen = slmeval(curve(:,3),warppingFnc,0);
     
@@ -1146,6 +1176,35 @@ end
 
 %% Optimization Objective for curve registration
 function optScore = warppingObjective(optimWarp,responseCurves,nvArg)
+
+% Perform warping
+[~, signalsX, signalsY] = warpArcLength(optimWarp,responseCurves,nvArg);
+% % Determine characteristic Average
+% charAvgX = mean(signalsX,2);
+% charAvgY = mean(signalsY,2);
+% signalsX = [charAvgX,signalsX];
+% signalsY = [charAvgY,signalsY];
+% % Compute correlation score
+[corrScore, ~] = evalCorrScore(signalsX,signalsY);
+% corrScore is a maximization goal. Turn into a minimization goal
+optScore = 1-corrScore;
+
+end
+
+%% Optimization Objective for curve registration
+function optScore = warppingObjective_Landmark(optimWarp,responseCurves,nvArg)
+nCurve = length(responseCurves);
+% if size is 2x curve, optimize both warp points and landmarks
+% For arrays, first column is warp location, second is landmark. 
+if size(optimWarp,1) == 2*nCurve
+    optimWarp = [optimWarp(1:nCurve),optimWarp(nCurve+1:end)];
+% if size is nCurve+1, treat last point as floating warp point, optimize
+% landmark point. 
+elseif size(optimWarp,1) == nCurve+1
+    optimWarp = [optimWarp(end).*ones(nCurve,1),optimWarp(1:nCurve)];
+else
+    error('Array size is incorrect')
+end       
 
 % Perform warping
 [~, signalsX, signalsY] = warpArcLength(optimWarp,responseCurves,nvArg);
