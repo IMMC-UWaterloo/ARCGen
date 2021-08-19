@@ -116,6 +116,7 @@ addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
 addParameter(nvArgObj, 'MinCorridorWidth',  0); 
 addParameter(nvArgObj, 'nWarpCtrlPts',      0);
+addParameter(nvArgObj, 'warpingPenalty',    1e-3);
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -640,7 +641,7 @@ if nvArg.nWarpCtrlPts > 0
         ub = 0.85.*ones(nSignal,1);
         A = [];
         b = [];
-    elseif nWarp >= 10
+    elseif nWarp >= 15
         error('Specifying more than 10 interior warping points is not supported')
     else
         x0 = zeros(nWarp*nSignal,1);
@@ -650,7 +651,7 @@ if nvArg.nWarpCtrlPts > 0
         lb = 0.15.*ones(nWarp*nSignal,1);
         ub = 0.85.*ones(nWarp*nSignal,1);
         A = zeros((nWarp-1)*nSignal, nWarp*nSignal);
-        b = -0.05.*ones((nWarp-1)*nSignal, 1); % Force some separation between warpped points
+        b = -0.01.*ones((nWarp-1)*nSignal, 1); % Force some separation between warpped points
         for iSignal = 1:nSignal
             for iWarp = 1:(nWarp-1)
                 A(iSignal+(iWarp-1)*nSignal, iSignal+(iWarp-1)*nSignal) = 1;
@@ -678,8 +679,11 @@ if nvArg.nWarpCtrlPts > 0
         plot(linspace(0,1,nWarp+2),[0,optWarpArray(iSignal,:),1],'x',...
             'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
     end
+    plot([0,1],[0,1],':','color',0.5.*[1,1,1])
     
     % Compute correlation score
+    [~, penaltyScore] = warpingObjective_nCtrlPts(optWarpArray,...
+        nWarp,responseCurves,nvArg)
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
     fprintf('Corr after Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
         corrArray(2),meanCorrScore);
@@ -1080,18 +1084,23 @@ end
 aLenInterval = 1./nvArg.nResamplePoints;
 indexLength = round(0.2*length(charAvg));
 
-aLenExtension = max(aLenInterval./(charAvg(1,:)-charAvg(2,:))...
-    .*1.1.*max(stdevData));
+aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+    .*1.1.*max(stdevData);
+aLenExtension(isinf(aLenExtension)) = 0;
+aLenExtension = max(aLenExtension);
+
 lineStart = [...
-    interp1([0,aLenInterval],charAvg(1:2,1), aLenExtension,'linear','extrap'),...
-    interp1([0,aLenInterval],charAvg(1:2,2), aLenExtension,'linear','extrap');...
+    interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+    interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
     charAvg(1:indexLength,:)];
 
-aLenExtension = max(aLenInterval./(charAvg(end,:)-charAvg(end-1,:))...
-    .*1.1.*max(stdevData));
+aLenExtension = max(abs(aLenInterval./(charAvg(end,:)-charAvg(end-1,:))...
+    .*1.1.*max(stdevData)));
 lineEnd =  [charAvg(end-indexLength:end,:);...
-    interp1([1-aLenInterval,1],charAvg(end-1:end,1), 1+aLenExtension,'linear','extrap'),...
-    interp1([1-aLenInterval,1],charAvg(end-1:end,2), 1+aLenExtension,'linear','extrap')];
+    interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+    (1+aLenExtension),'linear','extrap'),...
+    interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+    (1+aLenExtension),'linear','extrap')];
 
 %Find intercepts to divide line using Poly
 [~,~,iIntStart] = polyxpoly(envelope(:,1),envelope(:,2),...
@@ -1172,18 +1181,22 @@ meanCorrScore = 0.5*(corrScoreX+corrScoreY);
 corrScoreArray = [corrScoreX, corrScoreY];
 end
 
-function optScore = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
+function [optScore, penaltyScore] = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
 % Control points are equally spaced in arc-length. 
 % optimwarp is a column vector with first warpped control point in the
 % first nCurve indices, then 2nd control point in the next nCurve indices
 
 warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
+% Compute a warping penalty
+penaltyScore = warpingPenalty(warpArray,nvArg.warpingPenalty,nvArg);
+penaltyScore = mean(penaltyScore);
+
 % Perform warping
 [~, signalsX, signalsY] = warpArcLength_nCtrlPts(warpArray,responseCurves,nvArg);
 % Compute correlation score
 [corrScore, ~] = evalCorrScore(signalsX,signalsY);
 % corrScore is a maximization goal. Turn into a minimization goal
-optScore = 1-corrScore;
+optScore = 1-corrScore+penaltyScore;
 
 end
 
@@ -1230,3 +1243,20 @@ for iCurve = 1:nCurves
 end
 
 end
+
+function [penaltyScores] = warpingPenalty(warpArray,penaltyFactor,nvArg)
+% Compute an array of penalty scores based on MSE between linear, unwarped
+% arc-length and warped arc-length. Aim is to help prevent plateauing. 
+[nCurves, nCtrlPts] = size(warpArray);
+lmCtrlPts = linspace(0,1,2+nCtrlPts);
+penaltyScores = zeros(nCurves,1);
+unwarpedAlen = linspace(0,1,nvArg.nResamplePoints);
+
+for iCurve=1:nCurves
+    penaltyScores(iCurve) = sum((unwarpedAlen - ...
+        pchip(lmCtrlPts,[0,warpArray(iCurve,:),1],unwarpedAlen)).^2);
+end
+
+penaltyScores = penaltyScores.*penaltyFactor;
+end
+    
