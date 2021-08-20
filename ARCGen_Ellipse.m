@@ -636,35 +636,40 @@ if nvArg.nWarpCtrlPts > 0
     nSignal = length(responseCurves);
     
     if nWarp == 1   % nWarp == 1 is a special case as inequalites aren't needed
-        x0 = 0.50.*ones(nSignal,1);
-        lb = 0.15.*ones(nSignal,1);
-        ub = 0.85.*ones(nSignal,1);
+        x0 = 0.50.*ones(nSignal*2,1);
+        lb = 0.15.*ones(nSignal*2,1);
+        ub = 0.85.*ones(nSignal*2,1);
         A = [];
         b = [];
     elseif nWarp >= 15
         error('Specifying more than 10 interior warping points is not supported')
     else
-        x0 = zeros(nWarp*nSignal,1);
+        x0 = zeros(nWarp*(nSignal*2),1);
         for i = 1:nWarp
-            x0(((i-1)*nSignal)+(1:nSignal)) = i/(nWarp+1).*ones(nSignal,1);
+            x0(((i-1)*nSignal)+(1:nSignal) + (i-1)*nSignal) = i/(nWarp+1).*ones(nSignal,1);
+            x0(((i-1)*nSignal)+(1:nSignal)+i*(nSignal)) = i/(nWarp+1).*ones(nSignal,1);
         end
-        lb = 0.15.*ones(nWarp*nSignal,1);
-        ub = 0.85.*ones(nWarp*nSignal,1);
-        A = zeros((nWarp-1)*nSignal, nWarp*nSignal);
-        b = -0.01.*ones((nWarp-1)*nSignal, 1); % Force some separation between warpped points
-        for iSignal = 1:nSignal
+        lb = 0.05.*ones(nWarp*(nSignal*2),1);
+        ub = 0.95.*ones(nWarp*(nSignal*2),1);
+        A = zeros((nWarp-1)*(nSignal*2), nWarp*(nSignal*2));
+        b = -0.05.*ones((nWarp-1)*(nSignal*2), 1); % Force some separation between warpped points
+        for iSignal = 1:(nSignal*2)
             for iWarp = 1:(nWarp-1)
-                A(iSignal+(iWarp-1)*nSignal, iSignal+(iWarp-1)*nSignal) = 1;
-                A(iSignal+(iWarp-1)*nSignal, iSignal+iWarp*nSignal) = -1;
+                A(iSignal+(iWarp-1)*(nSignal*2), iSignal+(iWarp-1)*(nSignal*2)) = 1;
+                A(iSignal+(iWarp-1)*(nSignal*2), iSignal+iWarp*(nSignal*2)) = -1;
             end
         end
     end
     
+    % Setup optimization options
+    optOptions = optimoptions('fmincon',...
+        'MaxFunctionEvaluations',max(3000, (nWarp).*1000));
+    
     % Execute optimization and compute warped signals
     optWarpArray = fmincon(@(x)warpingObjective_nCtrlPts(x,nWarp,...
         responseCurves,nvArg),...
-        x0, A, b, [], [], lb, ub);
-    optWarpArray = reshape(optWarpArray,nSignal,nWarp)
+        x0, A, b, [], [], lb, ub, [], optOptions);
+    optWarpArray = reshape(optWarpArray,[],nWarp)
     [warppedSignals, signalX, signalY] = ...
         warpArcLength_nCtrlPts(optWarpArray,responseCurves,nvArg);
     
@@ -672,11 +677,11 @@ if nvArg.nWarpCtrlPts > 0
     colours = lines(nSignal);
     for iSignal = 1:nSignal
         plot(responseCurves(iSignal).data(:,4),...
-            pchip(linspace(0,1,nWarp+2),[0,optWarpArray(iSignal,:),1],...
+            pchip([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],...
             responseCurves(iSignal).data(:,4)),...
             '.-','DisplayName',responseCurves(iSignal).specId,...
             'color',colours(iSignal,:))
-        plot(linspace(0,1,nWarp+2),[0,optWarpArray(iSignal,:),1],'x',...
+        plot([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],'x',...
             'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
     end
     plot([0,1],[0,1],':','color',0.5.*[1,1,1])
@@ -1181,12 +1186,15 @@ meanCorrScore = 0.5*(corrScoreX+corrScoreY);
 corrScoreArray = [corrScoreX, corrScoreY];
 end
 
+%% Function used to compute objective for optimization
 function [optScore, penaltyScore] = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
 % Control points are equally spaced in arc-length. 
 % optimwarp is a column vector with first warpped control point in the
 % first nCurve indices, then 2nd control point in the next nCurve indices
 
-warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
+% warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
+nSignal = length(responseCurves);
+warpArray = reshape(optimWarp,[],nCtrlPts);
 % Compute a warping penalty
 penaltyScore = warpingPenalty(warpArray,nvArg.warpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
@@ -1206,9 +1214,12 @@ function [warppedSignals, signalsX, signalsY]...
 % Warp array: each row is warping points for an input signal, each column
 % is warpped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
-[nCurves, nCtrlPts] = size(warpArray);
+[~, nCtrlPts] = size(warpArray);
+nCurves = length(responseCurves);
 
-lmCtrlPts = linspace(0,1,2+nCtrlPts);
+
+% lmCtrlPts = linspace(0,1,2+nCtrlPts);
+% lmCtrlPts = [0,warpArray(end,:),1];
 
 % Initialize matrices
 signalsX = zeros(nvArg.nResamplePoints, nCurves);
@@ -1218,6 +1229,8 @@ warppedSignals = cell(nCurves,1);
 for iCurve = 1:nCurves
     % Assign responseCurve data array to matrix for brevity
     curve = responseCurves(iCurve).data;
+    
+    lmCtrlPts = [0,warpArray(iCurve+nCurves,:),1];
     
     % prepend 0 and append 1 to warp points for this curve to create valid
     % control points. 
@@ -1244,17 +1257,20 @@ end
 
 end
 
+%% Penalty function to prevent plateaus and extreme divergence in warping functions
 function [penaltyScores] = warpingPenalty(warpArray,penaltyFactor,nvArg)
 % Compute an array of penalty scores based on MSE between linear, unwarped
 % arc-length and warped arc-length. Aim is to help prevent plateauing. 
 [nCurves, nCtrlPts] = size(warpArray);
-lmCtrlPts = linspace(0,1,2+nCtrlPts);
+nCurves = nCurves/2;
+% lmCtrlPts = [0, warpArray(end,:), 1];
 penaltyScores = zeros(nCurves,1);
 unwarpedAlen = linspace(0,1,nvArg.nResamplePoints);
 
 for iCurve=1:nCurves
     penaltyScores(iCurve) = sum((unwarpedAlen - ...
-        pchip(lmCtrlPts,[0,warpArray(iCurve,:),1],unwarpedAlen)).^2);
+        pchip([0,warpArray(iCurve+nCurves,:),1],...
+        [0,warpArray(iCurve,:),1],unwarpedAlen)).^2);
 end
 
 penaltyScores = penaltyScores.*penaltyFactor;
