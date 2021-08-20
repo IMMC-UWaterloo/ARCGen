@@ -3,7 +3,8 @@ fclose all;
 clear;
 clc;
 
-nResample = 100;
+nResample = 250;
+nCorrPts = 250;
 smFact = 1;
 
 xlimits = [0,0.40];
@@ -61,7 +62,9 @@ ylabel('Force (N)')
     'NormalizeCurves', 'on',...
     'handleOutliers', 'off',...
     'CorridorRes',      nCorrPts,....
-    'EllipseKFact',     1.0);
+    'EllipseKFact',     1.0,...
+    'nWarpCtrlPts', 0,...
+    'warpingPenalty', 1e-2);
 
 figure('Name','Force-Disp - Normalization');
 hold on;
