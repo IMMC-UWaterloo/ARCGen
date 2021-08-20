@@ -114,7 +114,9 @@ addParameter(nvArgObj, 'HandleOutliers',    'off');
 addParameter(nvArgObj, 'DeviationFact',     2);
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
-addParameter(nvArgObj, 'MinCorridorWidth',    0); 
+addParameter(nvArgObj, 'MinCorridorWidth',  0); 
+addParameter(nvArgObj, 'nWarpCtrlPts',      0);
+addParameter(nvArgObj, 'warpingPenalty',    1e-3);
 nvArgObj.KeepUnmatched = true;
 parse(nvArgObj,varargin{:});
 
@@ -612,6 +614,101 @@ switch nvArg.HandleOutliers
         end
 end
 
+%% Align normalized arc-length signals based on minimized correlation. 
+% Enabled by option 'nWarpCtrlPts'. If 0, skip alignment.
+if nvArg.nWarpCtrlPts > 0
+    
+    % Assemble signal matrices prior to correlation
+    signalX = zeros(nvArg.nResamplePoints, length(responseCurves));
+    signalY = zeros(nvArg.nResamplePoints, length(responseCurves));
+    for i=1:length(responseCurves)
+        signalX(:,i) = responseCurves(i).normalizedCurve(:,2);
+        signalY(:,i) = responseCurves(i).normalizedCurve(:,3);
+    end
+    [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+    
+    fprintf('Corr before Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
+        corrArray(2),meanCorrScore);
+    
+    % Optimize warp points for arbitrary n warpping points. Build bounds,
+    % constraints, and x0s
+    nWarp = nvArg.nWarpCtrlPts;
+    nSignal = length(responseCurves);
+    
+    if nWarp == 1   % nWarp == 1 is a special case as inequalites aren't needed
+        x0 = 0.50.*ones(nSignal*2,1);
+        lb = 0.15.*ones(nSignal*2,1);
+        ub = 0.85.*ones(nSignal*2,1);
+        A = [];
+        b = [];
+    elseif nWarp >= 15
+        error('Specifying more than 10 interior warping points is not supported')
+    else
+        x0 = zeros(nWarp*(nSignal*2),1);
+        for i = 1:nWarp
+            x0(((i-1)*nSignal)+(1:nSignal) + (i-1)*nSignal) = i/(nWarp+1).*ones(nSignal,1);
+            x0(((i-1)*nSignal)+(1:nSignal)+i*(nSignal)) = i/(nWarp+1).*ones(nSignal,1);
+        end
+        lb = 0.05.*ones(nWarp*(nSignal*2),1);
+        ub = 0.95.*ones(nWarp*(nSignal*2),1);
+        A = zeros((nWarp-1)*(nSignal*2), nWarp*(nSignal*2));
+        b = -0.05.*ones((nWarp-1)*(nSignal*2), 1); % Force some separation between warpped points
+        for iSignal = 1:(nSignal*2)
+            for iWarp = 1:(nWarp-1)
+                A(iSignal+(iWarp-1)*(nSignal*2), iSignal+(iWarp-1)*(nSignal*2)) = 1;
+                A(iSignal+(iWarp-1)*(nSignal*2), iSignal+iWarp*(nSignal*2)) = -1;
+            end
+        end
+    end
+    
+    % Setup optimization options
+    optOptions = optimoptions('fmincon',...
+        'MaxFunctionEvaluations',max(3000, (nWarp).*1000));
+    
+    % Execute optimization and compute warped signals
+    optWarpArray = fmincon(@(x)warpingObjective_nCtrlPts(x,nWarp,...
+        responseCurves,nvArg),...
+        x0, A, b, [], [], lb, ub, [], optOptions);
+    optWarpArray = reshape(optWarpArray,[],nWarp)
+    [warppedSignals, signalX, signalY] = ...
+        warpArcLength_nCtrlPts(optWarpArray,responseCurves,nvArg);
+    
+    figure('Name','Warpping Functions'); hold on;
+    colours = lines(nSignal);
+    for iSignal = 1:nSignal
+        plot(responseCurves(iSignal).data(:,4),...
+            pchip([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],...
+            responseCurves(iSignal).data(:,4)),...
+            '.-','DisplayName',responseCurves(iSignal).specId,...
+            'color',colours(iSignal,:))
+        plot([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],'x',...
+            'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
+    end
+    plot([0,1],[0,1],':','color',0.5.*[1,1,1])
+    
+    % Compute correlation score
+    [~, penaltyScore] = warpingObjective_nCtrlPts(optWarpArray,...
+        nWarp,responseCurves,nvArg)
+    [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+    fprintf('Corr after Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
+        corrArray(2),meanCorrScore);
+    
+    % Replace 'normalizedCurve' in 'responseCurve' and compute average and
+    % standard deviation.
+    for iCurve=1:length(responseCurves)
+        responseCurves(iCurve).normalizedCurve = warppedSignals{iCurve};
+    end
+    for iPoints=1:nvArg.nResamplePoints
+        clear temp; % probably cleaner way to do this.
+        % collect specific point from each data curve
+        for iCurve=1:length(responseCurves)
+            temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+        end
+        charAvg(iPoints,:) = mean(temp,1);
+        stdevData(iPoints,:) = std(temp,1);
+    end
+end
+
 %% Clamp minimum corridor width. Disabled if 'MinCorridorWidth' == 0
 % Include influence of corridor scaling factor 'EllipseKFact'
 if nvArg.MinCorridorWidth > 0
@@ -719,13 +816,11 @@ zz = zeros(size(xx));   % initalize grid of ellipse values
 % For each grid point, find the max of each standard deviation ellipse
 for iPt = 1:nvArg.CorridorRes
     for jPt = 1:nvArg.CorridorRes
-        for kEllip = 1:size(charAvg,1)
-            zz(iPt,jPt) = max(zz(iPt,jPt),...
-                ((xx(iPt,jPt) - charAvg(kEllip,1)).^2 ./ ...
-                (stdevData(kEllip,1)*nvArg.EllipseKFact).^2 ...
-                + (yy(iPt,jPt) - charAvg(kEllip,2)).^2 ./ ...
-                (stdevData(kEllip,2)*nvArg.EllipseKFact).^2)^-1);
-        end
+        zz(iPt,jPt) = max(...
+            (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
+            (stdevData(:,1).*nvArg.EllipseKFact).^2 ...
+            + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
+            (stdevData(:,2).*nvArg.EllipseKFact).^2).^-1));
     end
 end
 
@@ -737,8 +832,10 @@ end
 % its and its neighbours values. There are only 16 configurations of these
 % squares or cells. Based on the configuration, add the appropriate line
 % segments. This method uses linear interpolation to increase accuracy. 
-lineSegments = []; % Initalize line segments
-
+% Initalize line segments for speed. This line may cause issues, as it
+% assumes maximum size. Bump up 10 if it does. 
+lineSegments = zeros(10*max(nvArg.nResamplePoints,nvArg.CorridorRes),4); 
+iSeg = 0;
 for iPt = 1:(nvArg.CorridorRes-1)  % Rows (y-axis)
     for jPt = 1:(nvArg.CorridorRes-1)   % Columns (x-axis)
         % Cell value definition
@@ -763,111 +860,132 @@ for iPt = 1:(nvArg.CorridorRes-1)  % Rows (y-axis)
                 % No Vertices
             case 2
                 % South-West
-                lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
-                    xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];        
+                    xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))];        
             case 3
                 % West-North
-                lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
             case 4
                 % North-South
-                lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt) ...
-                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
             case 5
                 % North-East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
-                    xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];        
+                    xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))];        
             case 6  % Ambiguous 
                 centerVal = mean([zz(iPt,jPt), zz(iPt+1,jPt), zz(iPt+1,jPt+1), zz(iPt, jPt+1)]);
                 if centerVal >= 1
                     % West-North
-                    lineSegments = [lineSegments;
+                    iSeg = iSeg+1;
+                    lineSegments(iSeg,:) = ...
                         [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                        interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                        interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
                     % South - East
-                    lineSegments = [lineSegments;...
+                    iSeg = iSeg+1;
+                    lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
-                        xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
+                        xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];
                 else
                     % South-West
-                    lineSegments = [lineSegments;...
+                    iSeg = iSeg+1;
+                    lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
-                        xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];
+                        xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))];
                     % North-East
-                    lineSegments = [lineSegments;...
+                    iSeg = iSeg+1;
+                    lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
-                        xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
+                        xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))];
                 end
             case 7
                 % West-East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [xx(iPt,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
+                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];
             case 8
                 % South - East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
-                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];  
+                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];  
             case 9
                 % South - East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
-                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
+                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];
             case 10
                 % West-East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [xx(iPt,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
+                    xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];
             case 11 % Ambiguous
                 centerVal = mean([zz(iPt,jPt), zz(iPt+1,jPt), zz(iPt+1,jPt+1), zz(iPt, jPt+1)]);
                 if centerVal >= 1
                     % South-West
-                    lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
-                        xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]];
+                        xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))];
                     % North-East
-                    lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
-                        xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
+                        xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))];
                 else
                     % West-North
-                    lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                         [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                        interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                        interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
                     % South-East
-                    lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                         [interpVal(xx(iPt,jPt+1),zz(iPt,jPt+1),xx(iPt,jPt),zz(iPt,jPt)),yy(iPt,jPt+1),...
-                        xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))]];
+                        xx(iPt,jPt+1),interpVal(yy(iPt,jPt+1),zz(iPt,jPt+1),yy(iPt+1,jPt+1),zz(iPt+1,jPt+1))];
                 end
             case 12
                 % North-East
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt+1),...
-                    xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))]];
+                    xx(iPt+1,jPt+1),interpVal(yy(iPt+1,jPt+1),zz(iPt+1,jPt+1), yy(iPt,jPt+1), zz(iPt,jPt+1))];
             case 13
                 % North-South
-                lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt) ...
-                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt),xx(iPt+1,jPt+1), zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
             case 14
                 % West-North
-                lineSegments = [lineSegments;
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [xx(iPt+1,jPt),interpVal(yy(iPt,jPt),zz(iPt,jPt), yy(iPt+1,jPt),zz(iPt+1,jPt)),...
-                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)]];
+                    interpVal(xx(iPt+1,jPt),zz(iPt+1,jPt), xx(iPt+1,jPt+1),zz(iPt+1,jPt+1)),yy(iPt+1,jPt)];
             case 15
                 % South-West
-                lineSegments = [lineSegments;...
+                iSeg = iSeg+1;
+                lineSegments(iSeg,:) = ...
                     [interpVal(xx(iPt,jPt),zz(iPt,jPt),xx(iPt,jPt+1),zz(iPt,jPt+1)),yy(iPt,jPt),...
-                    xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]]; 
+                    xx(iPt,jPt), interpVal(yy(iPt,jPt),zz(iPt,jPt),yy(iPt+1,jPt),zz(iPt+1,jPt))]; 
             case 16
                 % No vertices 
         end
     end
 end
+lineSegments = lineSegments(1:iSeg,:);
 
 % After the marching squares algorithm, line segments are not sorted.
 % Segments need to be sorted in order to create a proper polygon. 
@@ -971,14 +1089,23 @@ end
 aLenInterval = 1./nvArg.nResamplePoints;
 indexLength = round(0.2*length(charAvg));
 
+aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+    .*1.1.*max(stdevData);
+aLenExtension(isinf(aLenExtension)) = 0;
+aLenExtension = max(aLenExtension);
+
 lineStart = [...
-    interp1([0,aLenInterval],charAvg(1:2,1), -0.20,'linear','extrap'),...
-    interp1([0,aLenInterval],charAvg(1:2,2), -0.20,'linear','extrap');...
+    interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+    interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
     charAvg(1:indexLength,:)];
-    
+
+aLenExtension = max(abs(aLenInterval./(charAvg(end,:)-charAvg(end-1,:))...
+    .*1.1.*max(stdevData)));
 lineEnd =  [charAvg(end-indexLength:end,:);...
-    interp1([1-aLenInterval,1],charAvg(end-1:end,1), 1.50,'linear','extrap'),...
-    interp1([1-aLenInterval,1],charAvg(end-1:end,2), 1.50,'linear','extrap')];
+    interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+    (1+aLenExtension),'linear','extrap'),...
+    interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+    (1+aLenExtension),'linear','extrap')];
 
 %Find intercepts to divide line using Poly
 [~,~,iIntStart] = polyxpoly(envelope(:,1),envelope(:,2),...
@@ -1039,8 +1166,113 @@ end
 processedCurveData = responseCurves;
 end  % End main function
 
-% helper function to perform linear interpolation to an isovalue of 1 only
+%% helper function to perform linear interpolation to an isovalue of 1 only
 function val = interpVal(x1, y1, x2, y2)
     val = x1+(x2-x1)*(1-y1)/(y2-y1);
 end
    
+%% Function used to evaluate correlation score between signals
+function [meanCorrScore, corrScoreArray] = evalCorrScore(signalsX,signalsY)
+% Correlation score taken from the work of Nusholtz et al. (2009)
+% Compute cross-correlation matrix of all signals to each other
+corrMatX = corrcoef(signalsX);
+corrMatY = corrcoef(signalsY);
+% Convert matrices to a single score
+nCurve = size(corrMatX,2);
+corrScoreX = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatX))-nCurve);
+corrScoreY = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatY))-nCurve);
+% Compute a single metric for optimization purposes. Using simple mean
+meanCorrScore = 0.5*(corrScoreX+corrScoreY);
+corrScoreArray = [corrScoreX, corrScoreY];
+end
+
+%% Function used to compute objective for optimization
+function [optScore, penaltyScore] = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
+% Control points are equally spaced in arc-length. 
+% optimwarp is a column vector with first warpped control point in the
+% first nCurve indices, then 2nd control point in the next nCurve indices
+
+% warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
+nSignal = length(responseCurves);
+warpArray = reshape(optimWarp,[],nCtrlPts);
+% Compute a warping penalty
+penaltyScore = warpingPenalty(warpArray,nvArg.warpingPenalty,nvArg);
+penaltyScore = mean(penaltyScore);
+
+% Perform warping
+[~, signalsX, signalsY] = warpArcLength_nCtrlPts(warpArray,responseCurves,nvArg);
+% Compute correlation score
+[corrScore, ~] = evalCorrScore(signalsX,signalsY);
+% corrScore is a maximization goal. Turn into a minimization goal
+optScore = 1-corrScore+penaltyScore;
+
+end
+
+%% Function used to warp arc-length
+function [warppedSignals, signalsX, signalsY]...
+    = warpArcLength_nCtrlPts(warpArray, responseCurves, nvArg)
+% Warp array: each row is warping points for an input signal, each column
+% is warpped point. Control points are interpolated  on [0,1] assuming
+% equal spacing. 
+[~, nCtrlPts] = size(warpArray);
+nCurves = length(responseCurves);
+
+
+% lmCtrlPts = linspace(0,1,2+nCtrlPts);
+% lmCtrlPts = [0,warpArray(end,:),1];
+
+% Initialize matrices
+signalsX = zeros(nvArg.nResamplePoints, nCurves);
+signalsY = zeros(nvArg.nResamplePoints, nCurves);
+warppedSignals = cell(nCurves,1);
+
+for iCurve = 1:nCurves
+    % Assign responseCurve data array to matrix for brevity
+    curve = responseCurves(iCurve).data;
+    
+    lmCtrlPts = [0,warpArray(iCurve+nCurves,:),1];
+    
+    % prepend 0 and append 1 to warp points for this curve to create valid
+    % control points. 
+    warppedCtrlPts = [0,warpArray(iCurve,:),1];
+    
+    % Construct warping function using SLM. This warps lmAlen to shiftAlen.
+    % Use warping fuction to map computed arc-lengths onto the shifted
+    % system. use built-in pchip function. This is a peicewise monotonic 
+    % cubic spline. Signifincantly faster than SLM. 
+    warppedNormAlen = pchip(lmCtrlPts,warppedCtrlPts,curve(:,4));
+      
+    % Now uniformly resample normalzied arc-length
+    resamNormWarppedAlen = linspace(0,1, nvArg.nResamplePoints)';
+    resampX = interp1(warppedNormAlen, curve(:,1), resamNormWarppedAlen,'linear','extrap');
+    resampY = interp1(warppedNormAlen, curve(:,2), resamNormWarppedAlen,'linear','extrap');
+    % Assign to array for correlation calc
+    signalsX(:,iCurve) = resampX;
+    signalsY(:,iCurve) = resampY;
+    
+    % Assemble a cell array containing arrays of resampled signals. Similar
+    % to 'normalizedCurve' in 'responseCurves' structure
+    warppedSignals{iCurve} = [resamNormWarppedAlen,resampX,resampY];
+end
+
+end
+
+%% Penalty function to prevent plateaus and extreme divergence in warping functions
+function [penaltyScores] = warpingPenalty(warpArray,penaltyFactor,nvArg)
+% Compute an array of penalty scores based on MSE between linear, unwarped
+% arc-length and warped arc-length. Aim is to help prevent plateauing. 
+[nCurves, nCtrlPts] = size(warpArray);
+nCurves = nCurves/2;
+% lmCtrlPts = [0, warpArray(end,:), 1];
+penaltyScores = zeros(nCurves,1);
+unwarpedAlen = linspace(0,1,nvArg.nResamplePoints);
+
+for iCurve=1:nCurves
+    penaltyScores(iCurve) = sum((unwarpedAlen - ...
+        pchip([0,warpArray(iCurve+nCurves,:),1],...
+        [0,warpArray(iCurve,:),1],unwarpedAlen)).^2);
+end
+
+penaltyScores = penaltyScores.*penaltyFactor;
+end
+    
