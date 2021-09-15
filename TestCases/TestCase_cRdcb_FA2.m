@@ -8,8 +8,10 @@ nCorrPts = 200;
 xlimits = [0,0.01];
 ylimits = [0,1200];
 
+addpath('../')
+
 %% Filter force-displacement data
-load('Data/cRDCB FA2 Force-Disp/cRDCB_FA2_ForceDisp.mat')
+load('cRDCB FA2 Force-Disp/cRDCB_FA2_ForceDisp.mat')
 smFact = 10;
 for iCurve = 1:size(responseCurves,2)
     responseCurves(iCurve).data = [...
@@ -91,7 +93,7 @@ xlabel('Deflection (mm)')
 ylabel('Force (N)')
 
 %% Filter force-displacement data
-load('Data/cRDCB FA2 Trac-Sep/cRdcb_FA2_TrapezoidTracSep.mat')
+load('cRDCB FA2 Trac-Sep/cRdcb_FA2_TrapezoidTracSep.mat')
 smFact = 1;
 for iCurve = 1:size(responseCurves,2)
     responseCurves(iCurve).data = [...

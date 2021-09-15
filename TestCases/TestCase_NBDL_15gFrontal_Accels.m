@@ -5,23 +5,23 @@
 % R1 - Aug 8, 2021
 
 fclose all;
-% close all;
+close all;
 clear;
 clc;
 
-addpath('ThirdPartyFunctions')
+addpath('../')
 
 nResample = 350;
 nCorrPts = 250;
 smfact = 1;
 
 %% Plot Head X-Acceleration
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head XAccel_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head XAccel_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head XAccel.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head XAccel.mat')
 manualIndex = [241, 237, 244, 241, 236, 236, 239]; % Intermediate positive peak
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
@@ -71,12 +71,12 @@ xlabel('Time (ms)')
 ylabel('Accleration (g)')
 
 %% Plot Head Z-Acceleration
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head ZAccel_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head ZAccel_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head ZAccel.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head ZAccel.mat')
 % manualIndex = [243, 227, 237, 241, 237, 224, 241]; % zero-crossing
 manualIndex = [243, 229, 235, 242, 238, 226, 240]; % symmetry point/inflection
 
@@ -128,12 +128,12 @@ xlabel('Time (ms)')
 ylabel('Accleration (g)')
 
 %% Plot Head Y Angular Acceleration
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head YrotAccel_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head YrotAccel_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head YrotAccel.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head YrotAccel.mat')
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -182,12 +182,12 @@ xlabel('Time (ms)')
 ylabel('Angular Accleration (deg/s^2)')
 
 %% Plot T1 X Acceleration
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 XAccel_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 XAccel_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 XAccel.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 XAccel.mat')
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -235,12 +235,12 @@ xlabel('Time (ms)')
 ylabel('Accleration (g)')
 
 %% Plot T1 Z Acceleration
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 ZAccel_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 ZAccel_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 ZAccel.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 ZAccel.mat')
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
     ARCGen_Ellipse(responseCurves,...

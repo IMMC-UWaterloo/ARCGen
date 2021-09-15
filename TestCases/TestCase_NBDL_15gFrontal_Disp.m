@@ -5,23 +5,23 @@
 % R1 - Aug 8, 2021
 
 fclose all;
-% close all;
+close all;
 clear;
 clc;
 
-addpath('ThirdPartyFunctions')
+addpath('../')
 
 nResample = 500;
 nCorrPts = 500;
 smfact = 1;
 
 %% Plot Head X-Displacement
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head XDisp_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head XDisp_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head XDisp.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head XDisp.mat')
 manualIndex = [302, 316, 305, 300, 306, 337, 299];  % Intermediate Plateau
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
@@ -71,12 +71,12 @@ xlabel('Time (ms)')
 ylabel('Displacement (mm)')
 
 % Plot Head Z-Displacement
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head ZDisp_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head ZDisp_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head ZDisp.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head ZDisp.mat')
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -125,12 +125,12 @@ xlabel('Time (ms)')
 ylabel('Displacement (mm)')
 
 %% Plot Head Y Angular Displacement
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head YrotDisp_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head YrotDisp_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - Head YrotDisp.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - Head YrotDisp.mat')
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -179,12 +179,12 @@ xlabel('Time (ms)')
 ylabel('Angular Displacement (deg)')
 
 %% Plot T1 X Displacement
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 XDisp_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 XDisp_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 XDisp.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 XDisp.mat')
 % responseCurves(3) = [];
 
 [charAvg, innCorr, outCorr, proCurveData] = ...
@@ -233,12 +233,12 @@ xlabel('Time (ms)')
 ylabel('Displacement (mm)')
  
 %% Plot T1 Z Displacement
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 ZDisp_PointWiseAvg.mat');
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 ZDisp_PointWiseAvg.mat');
 nbdlAvg = pointAvg;
 nbdlInner = innerCorr;
 nbdlOuter = outerCorr;
 
-load('Data/NBDL 15g Frontal/NBDL 15g Frontal - T1 ZDisp.mat')
+load('NBDL 15g Frontal/NBDL 15g Frontal - T1 ZDisp.mat')
 manualIndex = [295, 287, 274, 314, 219, 286, 306];
 
 [charAvg, innCorr, outCorr, proCurveData] = ...

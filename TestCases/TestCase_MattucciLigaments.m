@@ -1,16 +1,18 @@
 fclose all;
-% close all;
+close all;
 clear;
 clc;
 
 nResample = 150;
 nCorrPts = 400;
 
+addpath('../')
+
 xlimits = [0,6.0];
 ylimits = [0,700];
 %% Generate Anterior Longitudinal, No Normalization
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_AnteriorLongitudinalLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_AnteriorLongitudinalLigament_QuasiStatic_NoFailure')
 invalidCurves = [11,14,15,16]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -82,7 +84,7 @@ ylabel('Force (N)')
 
 %% Generate Anterior Longitudinal, Normalized
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_AnteriorLongitudinalLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_AnteriorLongitudinalLigament_QuasiStatic_NoFailure')
 invalidCurves = [11,14,15,16]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -158,7 +160,7 @@ xlimits = [0,5.0];
 ylimits = [0,600];
 %% Generate Posterior Longitudinal, No Normalization
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_PosteriorLongitudinalLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_PosteriorLongitudinalLigament_QuasiStatic_NoFailure')
 invalidCurves = [5,6,14]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -230,7 +232,7 @@ ylabel('Force (lb)')
 
 %% Generate Posterior Longitudinal, Normalized
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_PosteriorLongitudinalLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_PosteriorLongitudinalLigament_QuasiStatic_NoFailure')
 invalidCurves = [5,6,14]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -306,7 +308,7 @@ xlimits = [0,7.5];
 ylimits = [0,600];
 %% Generate Ligamentum Flavum, No Normalization
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_LigamentumFlavum_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_LigamentumFlavum_QuasiStatic_NoFailure')
 
 [charAvgNoNorm, innCorrNoNorm, outCorrNoNorm,proCurveDataNoNorm] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -375,7 +377,7 @@ ylabel('Force (lb)')
 
 %% Generate Ligamentum Flavum, Normalized
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_LigamentumFlavum_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_LigamentumFlavum_QuasiStatic_NoFailure')
 
 [charAvgNorm, innCorrNorm, outCorrNorm,proCurveDataNorm] = ...
     ARCGen_Ellipse(responseCurves,...
@@ -448,7 +450,7 @@ xlimits = [0,7.5];
 ylimits = [0,400];
 %% Generate Capsular Ligament, No Normalization
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_CapsularLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_CapsularLigament_QuasiStatic_NoFailure')
 invalidCurves = [1,6,9]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -520,7 +522,7 @@ ylabel('Force (lb)')
 
 %% Generate Capsular Ligament, Normalized
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_CapsularLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_CapsularLigament_QuasiStatic_NoFailure')
 invalidCurves = [1,6,9]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -596,7 +598,7 @@ xlimits = [0,12];
 ylimits = [0,150];
 %% Generate Interspinous Ligament, No Normalization
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_InterspinousLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_InterspinousLigament_QuasiStatic_NoFailure')
 invalidCurves = [9,10,13]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);
@@ -668,7 +670,7 @@ ylabel('Force (lb)')
 
 %% Generate Interspinous Ligament, Normalized
 % Load data
-load('Data/Mattucci Ligament Data/Mattucci_InterspinousLigament_QuasiStatic_NoFailure')
+load('Mattucci Ligament Data/Mattucci_InterspinousLigament_QuasiStatic_NoFailure')
 invalidCurves = [9,10,13]';
 validIndices = all(not([1:length(responseCurves)]==invalidCurves),1);
 responseCurves = responseCurves(validIndices);

@@ -3,7 +3,8 @@ close all;
 clear;
 clc;
 
-load('Data/Lawrence Rib Data/CLawrence_RibData_Compiled_20210528.mat')
+load('Lawrence Rib Data/CLawrence_RibData_Compiled_20210528.mat');
+addpath('../');
 
 smFact = 10;
 nResamp = 200;

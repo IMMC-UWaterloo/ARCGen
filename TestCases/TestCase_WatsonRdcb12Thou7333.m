@@ -1,5 +1,5 @@
 fclose all;
-% close all;
+close all;
 clear;
 clc;
 
@@ -7,11 +7,13 @@ nResample = 250;
 nCorrPts = 250;
 smFact = 1;
 
+addpath('../')
+
 xlimits = [0,0.40];
 ylimits = [0,900];
 
 %% Filter reponse curve data
-load('Data/Watson 7333 12R RDCB/WatsonRdcb_7333_12Thou.mat')
+load('Watson 7333 12R RDCB/WatsonRdcb_7333_12Thou.mat')
 for iCurve = 1:size(responseCurves,2)
     responseCurves(iCurve).data = [...
         smooth(responseCurves(iCurve).data(:,1),smFact),...
