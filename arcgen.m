@@ -1,9 +1,9 @@
-%% ARCGen_Ellipse - Arc-length Response Corridor Generator - Ellise-Based
+%% ARCGen - Arc-length Response Corridor Generator
 % 
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           27-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT
-% Date:           13-Jul-2021
+% Date:           19-Sep-2021
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
@@ -101,7 +101,7 @@
 % extraction. 
 
 function [charAvg, innerCorr, outerCorr, processedCurveData] = ...
-    ARCGen_Ellipse(responseCurves,varargin)
+    arcgen(responseCurves,varargin)
 
 %% Setup Name-Value Argument parser
 nvArgObj = inputParser;
