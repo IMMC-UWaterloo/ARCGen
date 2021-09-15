@@ -88,7 +88,7 @@ addParameter(nvArgObj, 'MinCorridorWidth',  0);
 addParameter(nvArgObj, 'nWarpCtrlPts',      0);
 addParameter(nvArgObj, 'WarpingPenalty',    1e-2);
 nvArgObj.KeepUnmatched = true;
-nvArgObj.CaseSensitive = true;
+nvArgObj.CaseSensitive = false;
 
 parse(nvArgObj,varargin{:});
 
@@ -219,7 +219,7 @@ if nvArg.nWarpCtrlPts > 0
     fprintf('Corr before Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
         corrArray(2),meanCorrScore);
     
-    % Optimize warp points for arbitrary n warpping points. Build bounds,
+    % Optimize warp points for arbitrary n warping points. Build bounds,
     % constraints, and x0s
     nWarp = nvArg.nWarpCtrlPts;
     nSignal = length(responseCurves);
@@ -241,7 +241,7 @@ if nvArg.nWarpCtrlPts > 0
         lb = 0.05.*ones(nWarp*(nSignal*2),1);
         ub = 0.95.*ones(nWarp*(nSignal*2),1);
         A = zeros((nWarp-1)*(nSignal*2), nWarp*(nSignal*2));
-        b = -0.05.*ones((nWarp-1)*(nSignal*2), 1); % Force some separation between warpped points
+        b = -0.05.*ones((nWarp-1)*(nSignal*2), 1); % Force some separation between warped points
         for iSignal = 1:(nSignal*2)
             for iWarp = 1:(nWarp-1)
                 A(iSignal+(iWarp-1)*(nSignal*2), iSignal+(iWarp-1)*(nSignal*2)) = 1;
@@ -259,10 +259,10 @@ if nvArg.nWarpCtrlPts > 0
         responseCurves,nvArg),...
         x0, A, b, [], [], lb, ub, [], optOptions);
     optWarpArray = reshape(optWarpArray,[],nWarp)
-    [warppedSignals, signalX, signalY] = ...
+    [warpedSignals, signalX, signalY] = ...
         warpArcLength_nCtrlPts(optWarpArray,responseCurves,nvArg);
     
-    figure('Name','Warpping Functions'); hold on;
+    figure('Name','warping Functions'); hold on;
     colours = lines(nSignal);
     for iSignal = 1:nSignal
         plot(responseCurves(iSignal).data(:,4),...
@@ -285,7 +285,7 @@ if nvArg.nWarpCtrlPts > 0
     % Replace 'normalizedCurve' in 'responseCurve' and compute average and
     % standard deviation.
     for iCurve=1:length(responseCurves)
-        responseCurves(iCurve).normalizedCurve = warppedSignals{iCurve};
+        responseCurves(iCurve).normalizedCurve = warpedSignals{iCurve};
     end
     for iPoints=1:nvArg.nResamplePoints
         clear temp; % probably cleaner way to do this.
@@ -778,14 +778,14 @@ end
 %% Function used to compute objective for optimization
 function [optScore, penaltyScore] = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
 % Control points are equally spaced in arc-length. 
-% optimwarp is a column vector with first warpped control point in the
+% optimwarp is a column vector with first warped control point in the
 % first nCurve indices, then 2nd control point in the next nCurve indices
 
 % warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
 nSignal = length(responseCurves);
 warpArray = reshape(optimWarp,[],nCtrlPts);
 % Compute a warping penalty
-penaltyScore = warpingPenalty(warpArray,nvArg.warpingPenalty,nvArg);
+penaltyScore = warpingPenalty(warpArray,nvArg.WarpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
 
 % Perform warping
@@ -798,10 +798,10 @@ optScore = 1-corrScore+penaltyScore;
 end
 
 %% Function used to warp arc-length
-function [warppedSignals, signalsX, signalsY]...
+function [warpedSignals, signalsX, signalsY]...
     = warpArcLength_nCtrlPts(warpArray, responseCurves, nvArg)
 % Warp array: each row is warping points for an input signal, each column
-% is warpped point. Control points are interpolated  on [0,1] assuming
+% is warped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
 [~, nCtrlPts] = size(warpArray);
 nCurves = length(responseCurves);
@@ -813,7 +813,7 @@ nCurves = length(responseCurves);
 % Initialize matrices
 signalsX = zeros(nvArg.nResamplePoints, nCurves);
 signalsY = zeros(nvArg.nResamplePoints, nCurves);
-warppedSignals = cell(nCurves,1);
+warpedSignals = cell(nCurves,1);
 
 for iCurve = 1:nCurves
     % Assign responseCurve data array to matrix for brevity
@@ -823,25 +823,25 @@ for iCurve = 1:nCurves
     
     % prepend 0 and append 1 to warp points for this curve to create valid
     % control points. 
-    warppedCtrlPts = [0,warpArray(iCurve,:),1];
+    warpedCtrlPts = [0,warpArray(iCurve,:),1];
     
     % Construct warping function using SLM. This warps lmAlen to shiftAlen.
     % Use warping fuction to map computed arc-lengths onto the shifted
     % system. use built-in pchip function. This is a peicewise monotonic 
     % cubic spline. Signifincantly faster than SLM. 
-    warppedNormAlen = pchip(lmCtrlPts,warppedCtrlPts,curve(:,4));
+    warpedNormAlen = pchip(lmCtrlPts,warpedCtrlPts,curve(:,4));
       
     % Now uniformly resample normalzied arc-length
-    resamNormWarppedAlen = linspace(0,1, nvArg.nResamplePoints)';
-    resampX = interp1(warppedNormAlen, curve(:,1), resamNormWarppedAlen,'linear','extrap');
-    resampY = interp1(warppedNormAlen, curve(:,2), resamNormWarppedAlen,'linear','extrap');
+    resamNormwarpedAlen = linspace(0,1, nvArg.nResamplePoints)';
+    resampX = interp1(warpedNormAlen, curve(:,1), resamNormwarpedAlen,'linear','extrap');
+    resampY = interp1(warpedNormAlen, curve(:,2), resamNormwarpedAlen,'linear','extrap');
     % Assign to array for correlation calc
     signalsX(:,iCurve) = resampX;
     signalsY(:,iCurve) = resampY;
     
     % Assemble a cell array containing arrays of resampled signals. Similar
     % to 'normalizedCurve' in 'responseCurves' structure
-    warppedSignals{iCurve} = [resamNormWarppedAlen,resampX,resampY];
+    warpedSignals{iCurve} = [resamNormwarpedAlen,resampX,resampY];
 end
 
 end
