@@ -71,7 +71,7 @@
 % continuous corridors. These corridors can be resampled and extended after
 % extraction. 
 
-function [charAvg, innerCorr, outerCorr, processedCurveData] = ...
+function [charAvg, innerCorr, outerCorr, processedCurveData, varargout] = ...
     arcgen(responseCurves,varargin)
 
 %% Setup Name-Value Argument parser
@@ -91,7 +91,6 @@ nvArgObj.KeepUnmatched = true;
 nvArgObj.CaseSensitive = false;
 
 parse(nvArgObj,varargin{:});
-
 nvArg = nvArgObj.Results;  % Structure created for convenience
 
 %% Compute arclength based on input curve datapoints
@@ -201,12 +200,13 @@ for iPoints=1:nvArg.nResamplePoints
     charAvg(iPoints,:) = mean(temp,1);
     stdevData(iPoints,:) = std(temp,1);
 end
-
+% Assign characteristic average and st. dev. data to a debug structure
+debugOutput.charAvg = charAvg;
+debugOutput.stdevData = stdevData;
 
 %% Align normalized arc-length signals based on minimized correlation. 
 % Enabled by option 'nWarpCtrlPts'. If 0, skip alignment.
 if nvArg.nWarpCtrlPts > 0
-    
     % Assemble signal matrices prior to correlation
     signalX = zeros(nvArg.nResamplePoints, length(responseCurves));
     signalY = zeros(nvArg.nResamplePoints, length(responseCurves));
@@ -215,6 +215,9 @@ if nvArg.nWarpCtrlPts > 0
         signalY(:,i) = responseCurves(i).normalizedCurve(:,3);
     end
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+    % Assign pre-optimized correlation scores to debug structure
+    debugOutput.preWarpCorrArray = corrArray;
+    debugOutput.preWarpMeanCorrScore = meanCorrScore;
     
     % Optimize warp points for arbitrary n warping points. Build bounds,
     % constraints, and x0s
@@ -263,6 +266,9 @@ if nvArg.nWarpCtrlPts > 0
 
     % Compute correlation score
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
+    % Assign warped correlation scores to debug structure
+    debugOutput.warpedCorrArray = corrArray;
+    debugOutput.warpedMeanCorrScore = meanCorrScore;
     
     % Replace 'normalizedCurve' in 'responseCurve' and compute average and
     % standard deviation.
@@ -763,7 +769,9 @@ if strcmp(nvArg.Diagnostics,'detailed')
     xlim([min(xx(:)),max(xx(:))])
     ylim([min(yy(:)),max(yy(:))])
 end
+
 processedCurveData = responseCurves;
+varargout{1} = debugOutput;
 end  % End main function
 
 %% helper function to perform linear interpolation to an isovalue of 1 only
