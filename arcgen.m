@@ -258,26 +258,14 @@ if nvArg.nWarpCtrlPts > 0
     optWarpArray = fmincon(@(x)warpingObjective_nCtrlPts(x,nWarp,...
         responseCurves,nvArg),...
         x0, A, b, [], [], lb, ub, [], optOptions);
-    optWarpArray = reshape(optWarpArray,[],nWarp)
+    optWarpArray = reshape(optWarpArray,[],nWarp);
     [warpedSignals, signalX, signalY] = ...
         warpArcLength_nCtrlPts(optWarpArray,responseCurves,nvArg);
     
-    figure('Name','warping Functions'); hold on;
-    colours = lines(nSignal);
-    for iSignal = 1:nSignal
-        plot(responseCurves(iSignal).data(:,4),...
-            pchip([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],...
-            responseCurves(iSignal).data(:,4)),...
-            '.-','DisplayName',responseCurves(iSignal).specId,...
-            'color',colours(iSignal,:))
-        plot([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],'x',...
-            'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
-    end
-    plot([0,1],[0,1],':','color',0.5.*[1,1,1])
-    
+
     % Compute correlation score
     [~, penaltyScore] = warpingObjective_nCtrlPts(optWarpArray,...
-        nWarp,responseCurves,nvArg)
+        nWarp,responseCurves,nvArg);
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
     fprintf('Corr after Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
         corrArray(2),meanCorrScore);
@@ -311,11 +299,12 @@ if nvArg.MinCorridorWidth > 0
 end
 
 %% Diagnostic: Plot normalized curves and St. Devs. 
-if strcmp(nvArg.Diagnostics,'on')
+if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
     figure('Name','Diagnostic Curves');
     cmap = lines(length(responseCurves));
+    
     % Plot normalized x,y data
-    subplot(2,2,[1,2]); hold on;
+    subplot(2,2,1); hold on;
     for iCurve=1:length(responseCurves)
         pCurve(iCurve) = plot(responseCurves(iCurve).normalizedCurve(:,2),...
             responseCurves(iCurve).normalizedCurve(:,3),'.-',...
@@ -332,8 +321,33 @@ if strcmp(nvArg.Diagnostics,'on')
     end
     xlabel('x-data')
     ylabel('y-data')
-    legend(pCurve)
+    legend(pCurve, 'location', 'Best')
     title('Arc-length Discretized Normalized Curves')
+    
+    % Plot warpping functions
+    subplot(2,2,2); hold on
+    clear pCurve
+    if nvArg.nWarpCtrlPts > 0
+        colours = lines(nSignal);
+        for iSignal = 1:nSignal
+            pCurve(iSignal) = plot(responseCurves(iSignal).data(:,4),...
+                pchip([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],...
+                responseCurves(iSignal).data(:,4)),...
+                '.-','DisplayName',responseCurves(iSignal).specId,...
+                'color',colours(iSignal,:),...
+                'DisplayName',responseCurves(iCurve).specId);
+            plot([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],'x',...
+                'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
+            title('Warping functions');
+            legend(pCurve, 'location', 'Best')
+        end
+    else
+        title('No Warping Performed');
+    end
+    plot([0,1],[0,1],'--','color',0.3.*[1,1,1])
+    xlabel('Unwarped Normalized Arc-length')
+    ylabel('Warped Normalized Arc-length')    
+    
     % Plot normalized x data against arc-length with st. dev.
     subplot(2,2,3); hold on;
     errorbar(responseCurves(1).normalizedCurve(:,1),charAvg(:,1),...
@@ -347,6 +361,7 @@ if strcmp(nvArg.Diagnostics,'on')
     xlabel('Normalized Arc-length')
     ylabel('x-data')
     title('Average and St.Dev. of X-Data')
+    
     % Plot normalized y data against arc-length with st. dev.
     subplot(2,2,4); hold on;
     errorbar(responseCurves(1).normalizedCurve(:,1),charAvg(:,2),...
@@ -360,14 +375,14 @@ if strcmp(nvArg.Diagnostics,'on')
     xlabel('Normalized Arc-length')
     ylabel('y-data')
     title('Average and St.Dev. of Y-Data')
-    
+end
+
+if strcmp(nvArg.Diagnostics,'detailed')
     % Plot ellipses    
-    figure('Name','Overlaid Ellipses and Corridors'); hold on;
+    figure('Name','Ellipses and Corridor Extraction Debug'); hold on;
     % Scatter plot for debug
     cmap = cbrewer2('set2',2);
     colormap(cmap);
-%     scatter(xx(:),yy(:),20,zz(:)>=1,'Filled');
-
     % plot ellipses based on standard deviation
     for iPoint=1:nvArg.nResamplePoints
         ellipse(stdevData(iPoint,1).*nvArg.EllipseKFact,...
@@ -375,7 +390,6 @@ if strcmp(nvArg.Diagnostics,'on')
             charAvg(iPoint,1), charAvg(iPoint,2),...
             0.8.*[1,1,1]);
     end
-
     cmap = lines(length(responseCurves));
     for iCurve=1:length(responseCurves)
         plot(responseCurves(iCurve).data(:,1),...
@@ -383,7 +397,6 @@ if strcmp(nvArg.Diagnostics,'on')
             'DisplayName',responseCurves(iCurve).specId,...
             'Color', cmap(iCurve,:))
     end
-    
     plot(charAvg(:,1),charAvg(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
 end
@@ -660,7 +673,7 @@ end
 envelope = individualEnvelopes{ind};
 
 % For debugging, plot all envelopes
-if strcmp(nvArg.Diagnostics,'on')
+if strcmp(nvArg.Diagnostics,'detailed')
     for iEnv = 1:length(individualEnvelopes)
             plot(individualEnvelopes{iEnv}(:,1),...
             individualEnvelopes{iEnv}(:,2),'.-b','LineWidth',1.0)   
@@ -688,8 +701,6 @@ lineStart = [...
     interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
     charAvg(1:indexLength,:)];
 
-aLenExtension = max(abs(aLenInterval./(charAvg(end,:)-charAvg(end-1,:))...
-    .*1.1.*max(stdevData)));
 lineEnd =  [charAvg(end-indexLength:end,:);...
     interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
     (1+aLenExtension),'linear','extrap'),...
@@ -743,14 +754,16 @@ alenResamp = linspace(0,max(alen),nvArg.nResamplePoints)';
 outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
     interp1(alen,outerCorr(:,2),alenResamp)];
 
-%% Draw Ellipses for debug
-if strcmp(nvArg.Diagnostics,'on')
+%% Draw extension lines and sampling points to MS plot
+if strcmp(nvArg.Diagnostics,'detailed')
     % Plot corridors, avgs
     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
+    xlim([min(xx(:)),max(xx(:))])
+    ylim([min(yy(:)),max(yy(:))])
 end
 processedCurveData = responseCurves;
 end  % End main function
