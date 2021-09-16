@@ -216,9 +216,6 @@ if nvArg.nWarpCtrlPts > 0
     end
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
     
-    fprintf('Corr before Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
-        corrArray(2),meanCorrScore);
-    
     % Optimize warp points for arbitrary n warping points. Build bounds,
     % constraints, and x0s
     nWarp = nvArg.nWarpCtrlPts;
@@ -252,34 +249,35 @@ if nvArg.nWarpCtrlPts > 0
     
     % Setup optimization options
     optOptions = optimoptions('fmincon',...
-        'MaxFunctionEvaluations',max(3000, (nWarp).*1000));
+        'MaxFunctionEvaluations',max(3000, (nWarp+1).*1000),...
+        'Display','off');
     
     % Execute optimization and compute warped signals
-    optWarpArray = fmincon(@(x)warpingObjective_nCtrlPts(x,nWarp,...
+    optWarpArray = fmincon(@(x)warpingObjective(x,nWarp,...
         responseCurves,nvArg),...
         x0, A, b, [], [], lb, ub, [], optOptions);
     optWarpArray = reshape(optWarpArray,[],nWarp);
     [warpedSignals, signalX, signalY] = ...
-        warpArcLength_nCtrlPts(optWarpArray,responseCurves,nvArg);
+        warpArcLength(optWarpArray,responseCurves,nvArg);
     
 
     % Compute correlation score
-    [~, penaltyScore] = warpingObjective_nCtrlPts(optWarpArray,...
-        nWarp,responseCurves,nvArg);
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
-    fprintf('Corr after Opt.: x=%6f y=%6g mean= %6f \n', corrArray(1),...
-        corrArray(2),meanCorrScore);
     
     % Replace 'normalizedCurve' in 'responseCurve' and compute average and
     % standard deviation.
-    for iCurve=1:length(responseCurves)
-        responseCurves(iCurve).normalizedCurve = warpedSignals{iCurve};
+    for iSignal = 1:length(responseCurves)
+        responseCurves(iSignal).normalizedCurve = warpedSignals{iSignal};
+        responseCurves(iSignal).warpControlPoints = ...
+            [[0,optWarpArray(iSignal+nSignal,:),1];...
+            [0,optWarpArray(iSignal,:),1]];
     end
     for iPoints=1:nvArg.nResamplePoints
         clear temp; % probably cleaner way to do this.
         % collect specific point from each data curve
-        for iCurve=1:length(responseCurves)
-            temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+        for iSignal=1:length(responseCurves)
+            temp(iSignal,:) = ...
+                responseCurves(iSignal).normalizedCurve(iPoints,2:3);
         end
         charAvg(iPoints,:) = mean(temp,1);
         stdevData(iPoints,:) = std(temp,1);
@@ -789,7 +787,7 @@ corrScoreArray = [corrScoreX, corrScoreY];
 end
 
 %% Function used to compute objective for optimization
-function [optScore, penaltyScore] = warpingObjective_nCtrlPts(optimWarp,nCtrlPts,responseCurves,nvArg)
+function [optScore, penaltyScore] = warpingObjective(optimWarp,nCtrlPts,responseCurves,nvArg)
 % Control points are equally spaced in arc-length. 
 % optimwarp is a column vector with first warped control point in the
 % first nCurve indices, then 2nd control point in the next nCurve indices
@@ -802,7 +800,7 @@ penaltyScore = warpingPenalty(warpArray,nvArg.WarpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
 
 % Perform warping
-[~, signalsX, signalsY] = warpArcLength_nCtrlPts(warpArray,responseCurves,nvArg);
+[~, signalsX, signalsY] = warpArcLength(warpArray,responseCurves,nvArg);
 % Compute correlation score
 [corrScore, ~] = evalCorrScore(signalsX,signalsY);
 % corrScore is a maximization goal. Turn into a minimization goal
@@ -812,7 +810,7 @@ end
 
 %% Function used to warp arc-length
 function [warpedSignals, signalsX, signalsY]...
-    = warpArcLength_nCtrlPts(warpArray, responseCurves, nvArg)
+    = warpArcLength(warpArray, responseCurves, nvArg)
 % Warp array: each row is warping points for an input signal, each column
 % is warped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
