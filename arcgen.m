@@ -8,8 +8,8 @@
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
 % automated calculation of a characteristic average and response corridors
-% on input curves regardless of if said curves are non-monotonic or
-% hystertic. This is accomplished by re-parameterizing input curves based
+% on input signals regardless of if said signals are non-monotonic or
+% hystertic. This is accomplished by re-parameterizing input signals based
 % on arc-length. Corridors are extracted using a marching squares
 % algorithm.
 %
@@ -26,21 +26,21 @@
 %
 % MANDATORY INPUTS:
 % -----------------
-% responseCurves: A [nCurve,2] structured array consisting of the following
+% inputSignals: A [nSignal,2] structured array consisting of the following
 %       entries. Entries are case-senstive
 %   + data: an [n,2] array containing ordered x-y data
-%   + specId: character array containing an identifier for each curve
+%   + specId: character array containing an identifier for each signal
 % 
 % OPTIONAL INPUTS:
 % ----------------
 % nResamplePoints: integer defining the number of points used to
-%       re-parameterize input curves. Default: 100. 
+%       re-parameterize input signals. Default: 100. 
 % CorridorRes: integeer defining the number of grid points used for the
 %       marching squares algorithm. The sampling grid for the marching
 %       squares algorithm extends 120% of extreme corridors. This parameter
 %       defines the number of points along each side of the grid. 
 %       Default: 100. It is common to increase this significantly. 
-% NormalizeCurves: character arry used to turn on curve normalization.
+% NormalizeSignals: character arry used to turn on signal normalization.
 %       Options: 'on' (default), 'off'
 % EllipseKFact: float used to scale the major and minor axis of the
 %       ellipses used for corridor generation. This value corrisponds to 
@@ -59,29 +59,27 @@
 %       characteristic average.
 % innerCorr: an [n,2] array containing points defining the inner corridor
 % outerCorr: an [n,2] array containing points defining the outer corridor
-% processedCurveData: a structure array that outputs processed curves and
+% processedSignalData: a structure array that outputs processed signals and
 %       some basic statistics
 %
 % Note on outputted corridors: corridors are not uniformly sampled due to
 % the limitations of the marching squares algorithm used to extract
 % corridors in an automated fashion. Additionally, it is common that the
-% corridors do not extend to the start of the curves, as the standard
-% devaition at thes start of curves is typically too small to provide
+% corridors do not extend to the start of the signals, as the standard
+% devaition at thes start of signals is typically too small to provide
 % sufficeint ellipse overlap for the marching squares algorithm to extract
 % continuous corridors. These corridors can be resampled and extended after
 % extraction. 
 
-function [charAvg, innerCorr, outerCorr, processedCurveData, varargout] = ...
-    arcgen(responseCurves,varargin)
+function [charAvg, innerCorr, outerCorr, processedSignalData, varargout] = ...
+    arcgen(inputSignals,varargin)
 
 %% Setup Name-Value Argument parser
 nvArgObj = inputParser;
 addParameter(nvArgObj, 'nResamplePoints',   100);
 addParameter(nvArgObj, 'Diagnostics',       'off');
-addParameter(nvArgObj, 'InvalidCurves',     []);
 addParameter(nvArgObj, 'CorridorScaleFact', 1);
-addParameter(nvArgObj, 'NormalizeCurves',   'on');
-addParameter(nvArgObj, 'DeviationFact',     2);
+addParameter(nvArgObj, 'NormalizeSignals',  'on');
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);
 addParameter(nvArgObj, 'MinCorridorWidth',  0); 
@@ -93,46 +91,46 @@ nvArgObj.CaseSensitive = false;
 parse(nvArgObj,varargin{:});
 nvArg = nvArgObj.Results;  % Structure created for convenience
 
-%% Compute arclength based on input curve datapoints
+%% Compute arclength based on input signal datapoints
 % Do not perform normalization
-if strcmp(nvArg.NormalizeCurves,'off')
-    for iCurve = 1:length(responseCurves)
-        temp = responseCurves(iCurve).data; % Temporary for conveinence
+if strcmp(nvArg.NormalizeSignals,'off')
+    for iSignal = 1:length(inputSignals)
+        temp = inputSignals(iSignal).data; % Temporary for conveinence
         % Compute arc-length between each data point
         segments = sqrt( (temp(1:end-1,1)-temp(2:end,1)).^2 ...
             + (temp(1:end-1,2)-temp(2:end,2)).^2);
         alen = cumsum([0;segments]);
         % Append cumulative arc length to data array
-        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        inputSignals(iSignal).data = [inputSignals(iSignal).data,alen];
         % Compute normalized arc-length
-        responseCurves(iCurve).maxAlen = max(alen);
-        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
-            alen./responseCurves(iCurve).maxAlen];
+        inputSignals(iSignal).maxAlen = max(alen);
+        inputSignals(iSignal).data = [inputSignals(iSignal).data,...
+            alen./inputSignals(iSignal).maxAlen];
         % Determine max [x,y] data
         tempMax = max(temp,[],1);
-        responseCurves(iCurve).xMax = tempMax(1);
-        responseCurves(iCurve).yMax = tempMax(2);
+        inputSignals(iSignal).xMax = tempMax(1);
+        inputSignals(iSignal).yMax = tempMax(2);
         % Remove spurious duplicates
-        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
-        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+        [~,index,~] = unique(inputSignals(iSignal).data(:,4));
+        inputSignals(iSignal).data = inputSignals(iSignal).data(index,:);
     end
     
 % Perform magnitude normalization based on bounding box
-elseif strcmp(nvArg.NormalizeCurves,'on')
-    % Determine bounding box of individual curves
-    for iCurve = 1:length(responseCurves)
-        tempMin = min(responseCurves(iCurve).data,[],1);
-        responseCurves(iCurve).xMin = tempMin(1);
-        responseCurves(iCurve).yMin = tempMin(2);
-        tempMax = max(responseCurves(iCurve).data,[],1);
-        responseCurves(iCurve).xMax = tempMax(1);
-        responseCurves(iCurve).yMax = tempMax(2);
+elseif strcmp(nvArg.NormalizeSignals,'on')
+    % Determine bounding box of individual signals
+    for iSignal = 1:length(inputSignals)
+        tempMin = min(inputSignals(iSignal).data,[],1);
+        inputSignals(iSignal).xMin = tempMin(1);
+        inputSignals(iSignal).yMin = tempMin(2);
+        tempMax = max(inputSignals(iSignal).data,[],1);
+        inputSignals(iSignal).xMax = tempMax(1);
+        inputSignals(iSignal).yMax = tempMax(2);
     end
-    xBound = [mean([responseCurves.xMin]), mean([responseCurves.xMax])];
-    yBound = [mean([responseCurves.yMin]), mean([responseCurves.yMax])];
-    % Normalize the axis of each curve, then do arc-length calcs
-    for iCurve = 1:length(responseCurves)
-        temp = responseCurves(iCurve).data; % Temporary for conveinence
+    xBound = [mean([inputSignals.xMin]), mean([inputSignals.xMax])];
+    yBound = [mean([inputSignals.yMin]), mean([inputSignals.yMax])];
+    % Normalize the axis of each signal, then do arc-length calcs
+    for iSignal = 1:length(inputSignals)
+        temp = inputSignals(iSignal).data; % Temporary for conveinence
         % Normalize from bounding box to [-1,1]
         temp = [temp(:,1)./(xBound(2)-xBound(1)),...
             temp(:,2)./(yBound(2)-yBound(1))];
@@ -141,61 +139,61 @@ elseif strcmp(nvArg.NormalizeCurves,'on')
             + (temp(1:end-1,2)-temp(2:end,2)).^2);
         alen = cumsum([0;segments]);
         % Append cumulative arc length to data array
-        responseCurves(iCurve).data = [responseCurves(iCurve).data,alen];
+        inputSignals(iSignal).data = [inputSignals(iSignal).data,alen];
         % Compute normalized arc-length
-        responseCurves(iCurve).maxAlen = max(alen);
-        responseCurves(iCurve).data = [responseCurves(iCurve).data,...
-            alen./responseCurves(iCurve).maxAlen];
+        inputSignals(iSignal).maxAlen = max(alen);
+        inputSignals(iSignal).data = [inputSignals(iSignal).data,...
+            alen./inputSignals(iSignal).maxAlen];
         % Determine max [x,y] data
         tempMax = max(abs(temp),[],1);
-        responseCurves(iCurve).xNormMax = tempMax(1);
-        responseCurves(iCurve).yNormMax = tempMax(2);
+        inputSignals(iSignal).xNormMax = tempMax(1);
+        inputSignals(iSignal).yNormMax = tempMax(2);
         % Remove spurious duplicates
-        [~,index,~] = unique(responseCurves(iCurve).data(:,4));
-        responseCurves(iCurve).data = responseCurves(iCurve).data(index,:);
+        [~,index,~] = unique(inputSignals(iSignal).data(:,4));
+        inputSignals(iSignal).data = inputSignals(iSignal).data(index,:);
     end
 
-% Error handling if NormalizeCurves argument is not defined correctly
+% Error handling if NormalizeSignals argument is not defined correctly
 else
     error('Normalization method not  recognized')
 end
 
 % Compute mean and median arc-length deviation
-meanAlen = mean([responseCurves.maxAlen]);
-for iCurve=1:length(responseCurves)
-    responseCurves(iCurve).meanDevs = ...
-        responseCurves(iCurve).maxAlen-meanAlen;
+meanAlen = mean([inputSignals.maxAlen]);
+for iSignal=1:length(inputSignals)
+    inputSignals(iSignal).meanDevs = ...
+        inputSignals(iSignal).maxAlen-meanAlen;
 end
 
-medianAlen = median([responseCurves.maxAlen]);
-for iCurve=1:length(responseCurves)
-    responseCurves(iCurve).medianDev = ...
-        responseCurves(iCurve).maxAlen-medianAlen;
+medianAlen = median([inputSignals.maxAlen]);
+for iSignal=1:length(inputSignals)
+    inputSignals(iSignal).medianDev = ...
+        inputSignals(iSignal).maxAlen-medianAlen;
 end
 
-%% Resample response curve based on normalized arc-length
-for iCurve=1:length(responseCurves)
+%% Resample response signal based on normalized arc-length
+for iSignal=1:length(inputSignals)
     % Linear-interpolation for x,y data against arc-length
-    normAlen = linspace(0,responseCurves(iCurve).data(end,4),...
+    normAlen = linspace(0,inputSignals(iSignal).data(end,4),...
         nvArg.nResamplePoints)';
-    resampX = interp1(responseCurves(iCurve).data(:,4),...
-        responseCurves(iCurve).data(:,1), normAlen);
-    resampY = interp1(responseCurves(iCurve).data(:,4),...
-        responseCurves(iCurve).data(:,2), normAlen);
+    resampX = interp1(inputSignals(iSignal).data(:,4),...
+        inputSignals(iSignal).data(:,1), normAlen);
+    resampY = interp1(inputSignals(iSignal).data(:,4),...
+        inputSignals(iSignal).data(:,2), normAlen);
     % Resulting array is normalized arc-length, resampled x, resam. y
-    responseCurves(iCurve).normalizedCurve = [normAlen, resampX, resampY];
+    inputSignals(iSignal).normalizedSignal = [normAlen, resampX, resampY];
 end
     
-%% For each resampled point, determine average and standard deviation across curves
+%% For each resampled point, determine average and standard deviation across signals
 % Initialize arrays
 charAvg = zeros(nvArg.nResamplePoints,2);
 stdevData = zeros(nvArg.nResamplePoints,2);
 
 for iPoints=1:nvArg.nResamplePoints
     clear temp; % probably cleaner way to do this.
-    % collect specific point from each data curve
-    for iCurve=1:length(responseCurves)
-        temp(iCurve,:) = responseCurves(iCurve).normalizedCurve(iPoints,2:3);
+    % collect specific point from each signal
+    for iSignal=1:length(inputSignals)
+        temp(iSignal,:) = inputSignals(iSignal).normalizedSignal(iPoints,2:3);
     end
     charAvg(iPoints,:) = mean(temp,1);
     stdevData(iPoints,:) = std(temp,1);
@@ -208,11 +206,11 @@ debugOutput.stdevData = stdevData;
 % Enabled by option 'nWarpCtrlPts'. If 0, skip alignment.
 if nvArg.nWarpCtrlPts > 0
     % Assemble signal matrices prior to correlation
-    signalX = zeros(nvArg.nResamplePoints, length(responseCurves));
-    signalY = zeros(nvArg.nResamplePoints, length(responseCurves));
-    for i=1:length(responseCurves)
-        signalX(:,i) = responseCurves(i).normalizedCurve(:,2);
-        signalY(:,i) = responseCurves(i).normalizedCurve(:,3);
+    signalX = zeros(nvArg.nResamplePoints, length(inputSignals));
+    signalY = zeros(nvArg.nResamplePoints, length(inputSignals));
+    for i=1:length(inputSignals)
+        signalX(:,i) = inputSignals(i).normalizedSignal(:,2);
+        signalY(:,i) = inputSignals(i).normalizedSignal(:,3);
     end
     [meanCorrScore, corrArray] = evalCorrScore(signalX,signalY);
     % Assign pre-optimized correlation scores to debug structure
@@ -222,7 +220,7 @@ if nvArg.nWarpCtrlPts > 0
     % Optimize warp points for arbitrary n warping points. Build bounds,
     % constraints, and x0s
     nWarp = nvArg.nWarpCtrlPts;
-    nSignal = length(responseCurves);
+    nSignal = length(inputSignals);
     
     if nWarp == 1   % nWarp == 1 is a special case as inequalites aren't needed
         x0 = 0.50.*ones(nSignal*2,1);
@@ -257,11 +255,11 @@ if nvArg.nWarpCtrlPts > 0
     
     % Execute optimization and compute warped signals
     optWarpArray = fmincon(@(x)warpingObjective(x,nWarp,...
-        responseCurves,nvArg),...
+        inputSignals,nvArg),...
         x0, A, b, [], [], lb, ub, [], optOptions);
     optWarpArray = reshape(optWarpArray,[],nWarp);
     [warpedSignals, signalX, signalY] = ...
-        warpArcLength(optWarpArray,responseCurves,nvArg);
+        warpArcLength(optWarpArray,inputSignals,nvArg);
     
 
     % Compute correlation score
@@ -270,20 +268,20 @@ if nvArg.nWarpCtrlPts > 0
     debugOutput.warpedCorrArray = corrArray;
     debugOutput.warpedMeanCorrScore = meanCorrScore;
     
-    % Replace 'normalizedCurve' in 'responseCurve' and compute average and
+    % Replace 'normalizedSignal' in 'responseSignal' and compute average and
     % standard deviation.
-    for iSignal = 1:length(responseCurves)
-        responseCurves(iSignal).normalizedCurve = warpedSignals{iSignal};
-        responseCurves(iSignal).warpControlPoints = ...
+    for iSignal = 1:length(inputSignals)
+        inputSignals(iSignal).normalizedSignal = warpedSignals{iSignal};
+        inputSignals(iSignal).warpControlPoints = ...
             [[0,optWarpArray(iSignal+nSignal,:),1];...
             [0,optWarpArray(iSignal,:),1]];
     end
     for iPoints=1:nvArg.nResamplePoints
         clear temp; % probably cleaner way to do this.
-        % collect specific point from each data curve
-        for iSignal=1:length(responseCurves)
+        % collect specific point from each signal
+        for iSignal=1:length(inputSignals)
             temp(iSignal,:) = ...
-                responseCurves(iSignal).normalizedCurve(iPoints,2:3);
+                inputSignals(iSignal).normalizedSignal(iPoints,2:3);
         end
         charAvg(iPoints,:) = mean(temp,1);
         stdevData(iPoints,:) = std(temp,1);
@@ -302,48 +300,48 @@ if nvArg.MinCorridorWidth > 0
         .* max(stdevData(:,2)));
 end
 
-%% Diagnostic: Plot normalized curves and St. Devs. 
+%% Diagnostic: Plot normalized signals and St. Devs. 
 if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
-    figure('Name','Diagnostic Curves');
-    cmap = lines(length(responseCurves));
+    figure('Name','Diagnostic Signals');
+    cmap = lines(length(inputSignals));
     
     % Plot normalized x,y data
     subplot(2,2,1); hold on;
-    for iCurve=1:length(responseCurves)
-        pCurve(iCurve) = plot(responseCurves(iCurve).normalizedCurve(:,2),...
-            responseCurves(iCurve).normalizedCurve(:,3),'.-',...
-            'color',cmap(iCurve,:),...
-            'DisplayName',responseCurves(iCurve).specId);
-        if (strcmp(nvArg.NormalizeCurves,'off') || ...
-                strcmp(nvArg.NormalizeCurves,'on'))
+    for iSignal=1:length(inputSignals)
+        pSignal(iSignal) = plot(inputSignals(iSignal).normalizedSignal(:,2),...
+            inputSignals(iSignal).normalizedSignal(:,3),'.-',...
+            'color',cmap(iSignal,:),...
+            'DisplayName',inputSignals(iSignal).specId);
+        if (strcmp(nvArg.NormalizeSignals,'off') || ...
+                strcmp(nvArg.NormalizeSignals,'on'))
             continue
         else
-            plot(responseCurves(iCurve).data(responseCurves(iCurve).alignInd,1),...
-            responseCurves(iCurve).data(responseCurves(iCurve).alignInd,2),...
+            plot(inputSignals(iSignal).data(inputSignals(iSignal).alignInd,1),...
+            inputSignals(iSignal).data(inputSignals(iSignal).alignInd,2),...
             'kx','LineWidth',2.0)
         end
     end
     xlabel('x-data')
     ylabel('y-data')
-    legend(pCurve, 'location', 'Best')
-    title('Arc-length Discretized Normalized Curves')
+    legend(pSignal, 'location', 'Best')
+    title('Arc-length Discretized Normalized Signals')
     
     % Plot warpping functions
     subplot(2,2,2); hold on
-    clear pCurve
+    clear pSignal
     if nvArg.nWarpCtrlPts > 0
         colours = lines(nSignal);
         for iSignal = 1:nSignal
-            pCurve(iSignal) = plot(responseCurves(iSignal).data(:,4),...
+            pSignal(iSignal) = plot(inputSignals(iSignal).data(:,4),...
                 pchip([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],...
-                responseCurves(iSignal).data(:,4)),...
-                '.-','DisplayName',responseCurves(iSignal).specId,...
+                inputSignals(iSignal).data(:,4)),...
+                '.-','DisplayName',inputSignals(iSignal).specId,...
                 'color',colours(iSignal,:),...
-                'DisplayName',responseCurves(iCurve).specId);
+                'DisplayName',inputSignals(iSignal).specId);
             plot([0,optWarpArray(iSignal+nSignal,:),1],[0,optWarpArray(iSignal,:),1],'x',...
                 'color',colours(iSignal,:),'MarkerSize',12,'LineWidth',2.0)
             title('Warping functions');
-            legend(pCurve, 'location', 'Best')
+            legend(pSignal, 'location', 'Best')
         end
     else
         title('No Warping Performed');
@@ -354,13 +352,13 @@ if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
     
     % Plot normalized x data against arc-length with st. dev.
     subplot(2,2,3); hold on;
-    errorbar(responseCurves(1).normalizedCurve(:,1),charAvg(:,1),...
+    errorbar(inputSignals(1).normalizedSignal(:,1),charAvg(:,1),...
         stdevData(:,1),'color',0.5.*[1,1,1])
     cmap = lines;
-    for iCurve=1:length(responseCurves)
-        plot(responseCurves(iCurve).normalizedCurve(:,1),...
-            responseCurves(iCurve).normalizedCurve(:,2),'.-',...
-            'color',cmap(iCurve,:))
+    for iSignal=1:length(inputSignals)
+        plot(inputSignals(iSignal).normalizedSignal(:,1),...
+            inputSignals(iSignal).normalizedSignal(:,2),'.-',...
+            'color',cmap(iSignal,:))
     end
     xlabel('Normalized Arc-length')
     ylabel('x-data')
@@ -368,13 +366,13 @@ if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
     
     % Plot normalized y data against arc-length with st. dev.
     subplot(2,2,4); hold on;
-    errorbar(responseCurves(1).normalizedCurve(:,1),charAvg(:,2),...
+    errorbar(inputSignals(1).normalizedSignal(:,1),charAvg(:,2),...
         stdevData(:,2),'color',0.5.*[1,1,1])
     cmap = lines;
-    for iCurve=1:length(responseCurves)
-        plot(responseCurves(iCurve).normalizedCurve(:,1),...
-            responseCurves(iCurve).normalizedCurve(:,3),'.-',...
-            'color',cmap(iCurve,:))
+    for iSignal=1:length(inputSignals)
+        plot(inputSignals(iSignal).normalizedSignal(:,1),...
+            inputSignals(iSignal).normalizedSignal(:,3),'.-',...
+            'color',cmap(iSignal,:))
     end
     xlabel('Normalized Arc-length')
     ylabel('y-data')
@@ -394,12 +392,12 @@ if strcmp(nvArg.Diagnostics,'detailed')
             charAvg(iPoint,1), charAvg(iPoint,2),...
             0.8.*[1,1,1]);
     end
-    cmap = lines(length(responseCurves));
-    for iCurve=1:length(responseCurves)
-        plot(responseCurves(iCurve).data(:,1),...
-            responseCurves(iCurve).data(:,2),'-',...
-            'DisplayName',responseCurves(iCurve).specId,...
-            'Color', cmap(iCurve,:))
+    cmap = lines(length(inputSignals));
+    for iSignal=1:length(inputSignals)
+        plot(inputSignals(iSignal).data(:,1),...
+            inputSignals(iSignal).data(:,2),'-',...
+            'DisplayName',inputSignals(iSignal).specId,...
+            'Color', cmap(iSignal,:))
     end
     plot(charAvg(:,1),charAvg(:,2),'.-k','DisplayName','Char Avg',...
         'LineWidth',2.0,'MarkerSize',16)
@@ -770,7 +768,7 @@ if strcmp(nvArg.Diagnostics,'detailed')
     ylim([min(yy(:)),max(yy(:))])
 end
 
-processedCurveData = responseCurves;
+processedSignalData = inputSignals;
 varargout{1} = debugOutput;
 end  % End main function
 
@@ -786,29 +784,29 @@ function [meanCorrScore, corrScoreArray] = evalCorrScore(signalsX,signalsY)
 corrMatX = corrcoef(signalsX);
 corrMatY = corrcoef(signalsY);
 % Convert matrices to a single score
-nCurve = size(corrMatX,2);
-corrScoreX = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatX))-nCurve);
-corrScoreY = (1/(nCurve*(nCurve-1)))*(sum(sum(corrMatY))-nCurve);
+nSignal = size(corrMatX,2);
+corrScoreX = (1/(nSignal*(nSignal-1)))*(sum(sum(corrMatX))-nSignal);
+corrScoreY = (1/(nSignal*(nSignal-1)))*(sum(sum(corrMatY))-nSignal);
 % Compute a single metric for optimization purposes. Using simple mean
 meanCorrScore = 0.5*(corrScoreX+corrScoreY);
 corrScoreArray = [corrScoreX, corrScoreY];
 end
 
 %% Function used to compute objective for optimization
-function [optScore, penaltyScore] = warpingObjective(optimWarp,nCtrlPts,responseCurves,nvArg)
+function [optScore, penaltyScore] = warpingObjective(optimWarp,nCtrlPts,inputSignals,nvArg)
 % Control points are equally spaced in arc-length. 
 % optimwarp is a column vector with first warped control point in the
-% first nCurve indices, then 2nd control point in the next nCurve indices
+% first nSignal indices, then 2nd control point in the next nSignal indices
 
-% warpArray = reshape(optimWarp,length(responseCurves),nCtrlPts);
-nSignal = length(responseCurves);
+% warpArray = reshape(optimWarp,length(inputSignals),nCtrlPts);
+nSignal = length(inputSignals);
 warpArray = reshape(optimWarp,[],nCtrlPts);
 % Compute a warping penalty
 penaltyScore = warpingPenalty(warpArray,nvArg.WarpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
 
 % Perform warping
-[~, signalsX, signalsY] = warpArcLength(warpArray,responseCurves,nvArg);
+[~, signalsX, signalsY] = warpArcLength(warpArray,inputSignals,nvArg);
 % Compute correlation score
 [corrScore, ~] = evalCorrScore(signalsX,signalsY);
 % corrScore is a maximization goal. Turn into a minimization goal
@@ -818,49 +816,49 @@ end
 
 %% Function used to warp arc-length
 function [warpedSignals, signalsX, signalsY]...
-    = warpArcLength(warpArray, responseCurves, nvArg)
+    = warpArcLength(warpArray, inputSignals, nvArg)
 % Warp array: each row is warping points for an input signal, each column
 % is warped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
 [~, nCtrlPts] = size(warpArray);
-nCurves = length(responseCurves);
+nSignals = length(inputSignals);
 
 
 % lmCtrlPts = linspace(0,1,2+nCtrlPts);
 % lmCtrlPts = [0,warpArray(end,:),1];
 
 % Initialize matrices
-signalsX = zeros(nvArg.nResamplePoints, nCurves);
-signalsY = zeros(nvArg.nResamplePoints, nCurves);
-warpedSignals = cell(nCurves,1);
+signalsX = zeros(nvArg.nResamplePoints, nSignals);
+signalsY = zeros(nvArg.nResamplePoints, nSignals);
+warpedSignals = cell(nSignals,1);
 
-for iCurve = 1:nCurves
-    % Assign responseCurve data array to matrix for brevity
-    curve = responseCurves(iCurve).data;
+for iSignal = 1:nSignals
+    % Assign responseSignal data array to matrix for brevity
+    signal = inputSignals(iSignal).data;
     
-    lmCtrlPts = [0,warpArray(iCurve+nCurves,:),1];
+    lmCtrlPts = [0,warpArray(iSignal+nSignals,:),1];
     
-    % prepend 0 and append 1 to warp points for this curve to create valid
+    % prepend 0 and append 1 to warp points for this signal to create valid
     % control points. 
-    warpedCtrlPts = [0,warpArray(iCurve,:),1];
+    warpedCtrlPts = [0,warpArray(iSignal,:),1];
     
     % Construct warping function using SLM. This warps lmAlen to shiftAlen.
     % Use warping fuction to map computed arc-lengths onto the shifted
     % system. use built-in pchip function. This is a peicewise monotonic 
     % cubic spline. Signifincantly faster than SLM. 
-    warpedNormAlen = pchip(lmCtrlPts,warpedCtrlPts,curve(:,4));
+    warpedNormAlen = pchip(lmCtrlPts,warpedCtrlPts,signal(:,4));
       
     % Now uniformly resample normalzied arc-length
     resamNormwarpedAlen = linspace(0,1, nvArg.nResamplePoints)';
-    resampX = interp1(warpedNormAlen, curve(:,1), resamNormwarpedAlen,'linear','extrap');
-    resampY = interp1(warpedNormAlen, curve(:,2), resamNormwarpedAlen,'linear','extrap');
+    resampX = interp1(warpedNormAlen, signal(:,1), resamNormwarpedAlen,'linear','extrap');
+    resampY = interp1(warpedNormAlen, signal(:,2), resamNormwarpedAlen,'linear','extrap');
     % Assign to array for correlation calc
-    signalsX(:,iCurve) = resampX;
-    signalsY(:,iCurve) = resampY;
+    signalsX(:,iSignal) = resampX;
+    signalsY(:,iSignal) = resampY;
     
     % Assemble a cell array containing arrays of resampled signals. Similar
-    % to 'normalizedCurve' in 'responseCurves' structure
-    warpedSignals{iCurve} = [resamNormwarpedAlen,resampX,resampY];
+    % to 'normalizedSignal' in 'inputSignals' structure
+    warpedSignals{iSignal} = [resamNormwarpedAlen,resampX,resampY];
 end
 
 end
@@ -869,16 +867,16 @@ end
 function [penaltyScores] = warpingPenalty(warpArray,penaltyFactor,nvArg)
 % Compute an array of penalty scores based on MSE between linear, unwarped
 % arc-length and warped arc-length. Aim is to help prevent plateauing. 
-[nCurves, nCtrlPts] = size(warpArray);
-nCurves = nCurves/2;
+[nSignals, nCtrlPts] = size(warpArray);
+nSignals = nSignals/2;
 % lmCtrlPts = [0, warpArray(end,:), 1];
-penaltyScores = zeros(nCurves,1);
+penaltyScores = zeros(nSignals,1);
 unwarpedAlen = linspace(0,1,nvArg.nResamplePoints);
 
-for iCurve=1:nCurves
-    penaltyScores(iCurve) = sum((unwarpedAlen - ...
-        pchip([0,warpArray(iCurve+nCurves,:),1],...
-        [0,warpArray(iCurve,:),1],unwarpedAlen)).^2);
+for iSignal=1:nSignals
+    penaltyScores(iSignal) = sum((unwarpedAlen - ...
+        pchip([0,warpArray(iSignal+nSignals,:),1],...
+        [0,warpArray(iSignal,:),1],unwarpedAlen)).^2);
 end
 
 penaltyScores = penaltyScores.*penaltyFactor;
