@@ -16,20 +16,34 @@
 % This function has one mandatory input, four outputs, and many optional
 % inputs. Optional inputs are defined using name-value pair arguments. 
 %
-% Usage notes: It is common to see errors when running this function if the
-% number of resampling points or corridor extraction grid is too sparse.
-% This is error also occurs if standard deviation in a particular direction
-% is too small for subsequent ellipses to overlap significantly. Typically, 
-% this problem will result in an error pointing to a line 650+. A quick fix
-% is to keep bumping up 'nResamplePoints' and 'CorridorRes' until the error
-% goes array. Turning 'Diagnostics' 'on' can help identify these issues. 
+% Usage notes: 
+% It is common to see errors when running this function if the number of
+% resampling points or corridor extraction grid is too sparse. This is 
+% error also occurs if standard deviation in a particular direction is too
+% small for subsequent ellipses to overlap significantly. This problem can
+% be fixed by increasing 'nResamplePoints' and 'CorridorRes' until the
+% error goes array. Turning 'Diagnostics' to 'detailed' can help identify
+% these issues. 
+%
+% Computed corridors will often not extend all the way to the shared origin
+% of input signals. This is because small low st. dev. at this shared point
+% is too low to be captured during corridor extraction with the marching
+% squares algorithm. There are two solutions to this problem. First, one
+% could force a minimum corridors size using the 'MinCorridorWidth' option.
+% Second, one could manually extend corridors in post-processing. 
 %
 % MANDATORY INPUTS:
 % -----------------
-% inputSignals: A [nSignal,2] structured array consisting of the following
+% inputSignals: ARCGen can accomadate three types of input format
+% 1) A [nSignal,2] structured array consisting of the following
 %       entries. Entries are case-senstive
-%   + data: an [n,2] array containing ordered x-y data
+%   + data: an [m,2] array containing ordered x-y data
 %   + specId: character array containing an identifier for each signal
+% 2) A [nSignal,2] structured array consisting of only signal data, no 
+%       signal IDs. Entries are case-senstive
+%   + data: an [m,2] array containing ordered x-y data
+% 3) A cell array of length nSignal containing [m,2] arrays of each input
+%       signal. 
 % 
 % OPTIONAL INPUTS:
 % ----------------
@@ -47,31 +61,38 @@
 %       the square root of the chi-squared CDF. Default: 1.0 (creates 
 %       corridors one standard deviation along the x and y axes)
 % Diagnostics: character array used to activate diagnostic plots. Useful
-%       for debugging errors. Options: 'on', 'off' (default)
+%       for debugging errors. Options: 'off' (detail), 'on', 'detailed'. 
 % MinCorridorWidth: Factor used to enforce a minimum corridor width. Any
 %       st.dev. less than 'MinCorridorFactor'*max(st.dev.) is replaced with
 %       'MinCorridorFactor'*max(st.dev.). x & y axes are handled
-%       separately. A value of 0 disables forcing minimum width.
+%       separately. A value of 0 (default) disables forcing minimum width.
+% nWarpCtrlPts: integer that sets the number of interior control points
+%       used for signal registration. A value of 0 (default) disables
+%       signal registration
+% WarpingPenalty: float specifying the penalty factor used during the
+%       signal registration process. A value of 10^-2 (default) to 10^3 is
+%       recommended, but the exact value will need to be tuned to a
+%       specific problem. 
 %
-% OUTPUTS:
-% --------
+% MANDATORY OUTPUTS:
+% ------------------
 % charAvg: an [nResamplePoints,2] array containing the computed
 %       characteristic average.
-% innerCorr: an [n,2] array containing points defining the inner corridor
-% outerCorr: an [n,2] array containing points defining the outer corridor
-% processedSignalData: a structure array that outputs processed signals and
-%       some basic statistics
+% innerCorr: an [nResamplePoints,2] array containing points defining the
+%       inner corridor
+% outerCorr: an [nResamplePoints,2] array containing points defining the 
+%       outer corridor
 %
-% Note on outputted corridors: corridors are not uniformly sampled due to
-% the limitations of the marching squares algorithm used to extract
-% corridors in an automated fashion. Additionally, it is common that the
-% corridors do not extend to the start of the signals, as the standard
-% devaition at thes start of signals is typically too small to provide
-% sufficeint ellipse overlap for the marching squares algorithm to extract
-% continuous corridors. These corridors can be resampled and extended after
-% extraction. 
+% OPTIONAL OUTPUTS:
+% ----------------
+% processedSignalData: a structure array that outputs processed signals,
+%       basic statistics, and warping control poitns
+% debugData: a structure that provides a wealth of debugging information,
+%       including raw average and st. dev. data, correlation scores before
+%       and after registration, and other. 
 
-function [charAvg, innerCorr, outerCorr, processedSignalData, varargout] = ...
+
+function [charAvg, innerCorr, outerCorr, varargout] = ...
     arcgen(inputSignals,varargin)
 
 %% Setup Name-Value Argument parser
@@ -785,8 +806,8 @@ if strcmp(nvArg.Diagnostics,'detailed')
     ylim([min(yy(:)),max(yy(:))])
 end
 
-processedSignalData = inputSignals;
-varargout{1} = debugOutput;
+varargout{1} = inputSignals;
+varargout{2} = debugOutput;
 end  % End main function
 
 %% helper function to perform linear interpolation to an isovalue of 1 only
