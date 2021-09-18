@@ -1,22 +1,21 @@
-%% Pre-process Input Response Curves
-% 
+%% Pre-process Input Signals
+%
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           13-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT     
-% Date:           13-Jul-2021           
+% Date:           18-Sep-2021           
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
-% This script pre-processes input curves which will be subsequently used
-% for to generate a characteristic average and response corridors. This
-% preprocessing amalgoamtes several curves, ensures the validity of said
-% curves, optionally filters the curves, and saves the data into a single
-% MATLAB data file for later use. 
+% This script pre-processes input signals which will be subsequently used
+% for to generate a characteristic average and response corridors.  
+% Preprocessing amalgoamtes several curves, ensures the validity of said
+% curves, and saves the data into a single MATLAB data file for later use. 
 %
-% Input curves must be saved in individual CSV files, with data saved in
+% Input signals must be saved in individual CSV files, with data saved in
 % columns. The user can set which two column indices are used as the input
 % x and y data. 
 %
-% Actual corridor generation is performed in a separate script
+% Corridor generation is performed in a separate script
 %
 % Corridor generation scripts requires that input data be organized using a
 % structure array. The structure array must have two entries per response
@@ -87,16 +86,13 @@ end
 %% Load response curves
 % Specify x,y columns of datafile to be loaded
 indicesCurves = [1,2];
-responseCurves = struct([]); % initialization
+inputSignals = struct([]); % initialization
 for iFile = 1:length(inputFilenames)
     curveData = readmatrix(inputFilenames(iFile).name); % R2020a required
-    responseCurves(iFile).specId = inputFilenames(iFile).specId;
-    responseCurves(iFile).data = curveData(:,indicesCurves);
+    inputSignals(iFile).specId = inputFilenames(iFile).specId;
+    inputSignals(iFile).data = curveData(:,indicesCurves);
 end
     
-%% Filter curves
-% TODO: Add filtering
-
 %% Save response curves to file
-uisave({'responseCurves'})
+uisave({'inputSignals'})
 
