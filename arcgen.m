@@ -91,6 +91,23 @@ nvArgObj.CaseSensitive = false;
 parse(nvArgObj,varargin{:});
 nvArg = nvArgObj.Results;  % Structure created for convenience
 
+%% Process input options
+% Check if structure with specID, struct w/o specID, cell array. Error out
+% otherwise. Places inputs into structure format.
+if isstruct(inputSignals)
+    if ~isfield(inputSignals,'specId')
+        for iSignal = 1:length(inputSignals)
+            inputSignals(iSignal).specId = ...
+                ['Signal ' num2str(iSignal,'%3d')];
+        end
+    end
+elseif iscell(inputSignals)
+    inputSignals = cell2struct(inputSignals,'data');
+    for iSignal = 1:length(inputSignals)
+       inputSignals(iSignal).specId = ['Signal ' num2str(iSignal,'%3d')];
+    end
+end
+
 %% Compute arclength based on input signal datapoints
 % Do not perform normalization
 if strcmp(nvArg.NormalizeSignals,'off')
