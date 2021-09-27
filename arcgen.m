@@ -39,7 +39,7 @@
 %       entries. Entries are case-senstive
 %   + data: an [m,2] array containing ordered x-y data
 %   + specId: character array containing an identifier for each signal
-% 2) A [nSignal,2] structured array consisting of only signal data, no 
+% 2) A [nSignal,1] structured array consisting of only signal data, no 
 %       signal IDs. Entries are case-senstive
 %   + data: an [m,2] array containing ordered x-y data
 % 3) A cell array of length nSignal containing [m,2] arrays of each input
@@ -61,7 +61,7 @@
 %       the square root of the chi-squared CDF. Default: 1.0 (creates 
 %       corridors one standard deviation along the x and y axes)
 % Diagnostics: character array used to activate diagnostic plots. Useful
-%       for debugging errors. Options: 'off' (detail), 'on', 'detailed'. 
+%       for debugging errors. Options: 'off' (default), 'on', 'detailed'. 
 % MinCorridorWidth: Factor used to enforce a minimum corridor width. Any
 %       st.dev. less than 'MinCorridorFactor'*max(st.dev.) is replaced with
 %       'MinCorridorFactor'*max(st.dev.). x & y axes are handled
