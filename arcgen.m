@@ -320,7 +320,7 @@ if nvArg.nWarpCtrlPts > 0
         x0, A, b, [], [], lb, ub, [], optOptions);
     optWarpArray = reshape(optWarpArray,[],nWarp);
     [warpedSignals, signalX, signalY] = ...
-        warpArcLength(optWarpArray,inputSignals,nvArg);
+        warpArcLength(optWarpArray,inputSignals,nvArg.nResamplePoints);
     
 
     % Compute correlation score
@@ -883,8 +883,19 @@ warpArray = reshape(optimWarp,[],nCtrlPts);
 penaltyScore = warpingPenalty(warpArray,nvArg.WarpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
 
-% Perform warping
-[~, signalsX, signalsY] = warpArcLength(warpArray,inputSignals,nvArg);
+% Perform warping - non-mex version
+% [~, signalsX, signalsY] = warpArcLength(warpArray,inputSignals,...
+%     nvArg.nResamplePoints);
+
+% IMPORTANT: This is a compiled mex verison of warpArcLength. The mex
+% function cannot be modified. If warpArcLength is updated later, you will
+% also need to recompile the mex function
+signalCellArray = cell(nSignal,1);
+for i=1:nSignal
+signalCellArray{i} = inputSignals(i).data;
+end
+[~, signalsX, signalsY] = warpArcLength_mex(warpArray,signalCellArray,nvArg.nResamplePoints);
+
 % Compute correlation score
 [corrScore, ~] = evalCorrScore(signalsX,signalsY);
 % corrScore is a maximization goal. Turn into a minimization goal
@@ -894,20 +905,18 @@ end
 
 %% Function used to warp arc-length
 function [warpedSignals, signalsX, signalsY]...
-    = warpArcLength(warpArray, inputSignals, nvArg)
+    = warpArcLength(warpArray, inputSignals, nResamplePoints)
 % Warp array: each row is warping points for an input signal, each column
 % is warped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
-[~, nCtrlPts] = size(warpArray);
 nSignals = length(inputSignals);
-
 
 % lmCtrlPts = linspace(0,1,2+nCtrlPts);
 % lmCtrlPts = [0,warpArray(end,:),1];
 
 % Initialize matrices
-signalsX = zeros(nvArg.nResamplePoints, nSignals);
-signalsY = zeros(nvArg.nResamplePoints, nSignals);
+signalsX = zeros(nResamplePoints, nSignals);
+signalsY = zeros(nResamplePoints, nSignals);
 warpedSignals = cell(nSignals,1);
 
 for iSignal = 1:nSignals
@@ -927,7 +936,7 @@ for iSignal = 1:nSignals
     warpedNormAlen = pchip(lmCtrlPts,warpedCtrlPts,signal(:,4));
       
     % Now uniformly resample normalzied arc-length
-    resamNormwarpedAlen = linspace(0,1, nvArg.nResamplePoints)';
+    resamNormwarpedAlen = linspace(0,1, nResamplePoints)';
     resampX = interp1(warpedNormAlen, signal(:,1), resamNormwarpedAlen,'linear','extrap');
     resampY = interp1(warpedNormAlen, signal(:,2), resamNormwarpedAlen,'linear','extrap');
     % Assign to array for correlation calc
