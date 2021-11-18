@@ -106,11 +106,26 @@ addParameter(nvArgObj, 'CorridorRes',       100);
 addParameter(nvArgObj, 'MinCorridorWidth',  0); 
 addParameter(nvArgObj, 'nWarpCtrlPts',      0);
 addParameter(nvArgObj, 'WarpingPenalty',    1e-2);
+addParameter(nvArgObj, 'UseParallel',       'off');
 nvArgObj.KeepUnmatched = true;
 nvArgObj.CaseSensitive = false;
 
 parse(nvArgObj,varargin{:});
 nvArg = nvArgObj.Results;  % Structure created for convenience
+
+% check if parallel toobox is installed, then if parpool is running. Error
+% out if not installed, start pool if not already started. 
+v = ver;
+hasParallel = any(strcmp(cellstr(char(v.Name)), 'Parallel Computing Toolbox'));
+if strcmp(nvArg.UseParallel,'on')
+    if ~hasParallel
+        error('Parallel Computing Toolbox is not installed. Set option UseParallel to off')
+    end
+    p = gcp('nocreate');
+    if isempty(p)
+        parpool();
+    end
+end
 
 %% Process input options
 % Check if structure with specID, struct w/o specID, cell array. Error out
@@ -286,10 +301,18 @@ if nvArg.nWarpCtrlPts > 0
         end
     end
     
-    % Setup optimization options
-    optOptions = optimoptions('fmincon',...
+    % Setup optimization options ('UseParallel' option active here)
+    if strcmp(nvArg.UseParallel,'on')
+        optOptions = optimoptions('fmincon',...
+            'MaxFunctionEvaluations',max(3000, (nWarp+1).*1000),...
+            'Display','off',...
+            'UseParallel',true);
+    else
+        optOptions = optimoptions('fmincon',...
         'MaxFunctionEvaluations',max(3000, (nWarp+1).*1000),...
-        'Display','off');
+        'Display','off',...
+        'UseParallel',false);
+    end
     
     % Execute optimization and compute warped signals
     optWarpArray = fmincon(@(x)warpingObjective(x,nWarp,...
@@ -456,13 +479,30 @@ scaleFact = 1.2*nvArg.EllipseKFact;
 zz = zeros(size(xx));   % initalize grid of ellipse values
 
 % For each grid point, find the max of each standard deviation ellipse
-for iPt = 1:nvArg.CorridorRes
-    for jPt = 1:nvArg.CorridorRes
-        zz(iPt,jPt) = max(...
-            (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
-            (stdevData(:,1).*nvArg.EllipseKFact).^2 ...
-            + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
-            (stdevData(:,2).*nvArg.EllipseKFact).^2).^-1));
+kFact = nvArg.EllipseKFact; % faster if no struct call in inner loop. 
+nRes = nvArg.CorridorRes;   % again, for speed
+% If 'UseParallel' is 'on', grid evaluation is performed using a parallel
+% for loop. 
+if strcmp(nvArg.UseParallel,'on')
+    parfor iPt = 1:nRes
+        for jPt = 1:nRes
+            zz(iPt,jPt) = max(...
+                (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
+                (stdevData(:,1).*kFact).^2 ...
+                + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
+                (stdevData(:,2).*kFact).^2).^-1));
+        end
+    end
+% otherwise, use a standard forloop
+else
+    for iPt = 1:nRes
+        for jPt = 1:nRes
+            zz(iPt,jPt) = max(...
+                (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
+                (stdevData(:,1).*kFact).^2 ...
+                + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
+                (stdevData(:,2).*kFact).^2).^-1));
+        end
     end
 end
 
