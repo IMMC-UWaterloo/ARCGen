@@ -465,7 +465,6 @@ if strcmp(nvArg.Diagnostics,'detailed')
 end
 
 %% Begin marching squares algorithm
-
 % Create grids based on upper and lower of characteristic average plus 120%
 % of maximum standard deviation
 scaleFact = 1.2*nvArg.EllipseKFact;
@@ -669,94 +668,85 @@ for iPt = 1:(nvArg.CorridorRes-1)  % Rows (y-axis)
 end
 lineSegments = lineSegments(1:iSeg,:);
 
-% After the marching squares algorithm, line segments are not sorted.
-% Segments need to be sorted in order to create a proper polygon. 
-%
-% One issues with very small ellipses is orphan envelopes can occur. This
-% sorting algorithm attempts to find all envelopes. Final corridor
-% extraction is only done on the largest envelope. Largest is defined by
-% the number of vertices. 
-%
-% Start sorting algorithm in the "middle" of the polygon, under the
-% assumption that there is fewer orphans in the middle. But this algorithm
-% should be fine if it is an orphan. 
-iEnvelope = 1;
-indexUsed = zeros(size(lineSegments,1),1);
-lastIndex = round(0.5*size(lineSegments,1));
+% Extract list of unique vertices from line segmens
+vertices = [lineSegments(:,1:2);lineSegments(:,3:4)];
+vertices = uniquetol(vertices,eps,'ByRows', true);
 
-while ~all(indexUsed==1)
-    % Use the index of lowest y-value to seed the envelope. Envelope is
-    % specifically vertices, not line segments. All vertices are duplicated in
-    % line segments, assuming no orphans.
-    envelope = lineSegments(lastIndex,1:2);
-    % Add second vertex, as it uses the same line segment
-    envelope = [envelope; lineSegments(lastIndex,3:4)];
-    indexUsed(lastIndex) = 1;
-    
-    exitFlag = 0;   % Set exit flag fudge
-    % Go though all vertices looking for the next connecting face
-    for iVerts = 2:size(lineSegments,1)
-        % For an enclosed polygon, all lines share vertices
-        % Find the all repeated vertices
-        foundVert12 = find(all(ismembertol(lineSegments(:,1:2), envelope(end,:)), 2));
-        foundVert34 = find(all(ismembertol(lineSegments(:,3:4), envelope(end,:)), 2));
-        
-        % there will only ever be two points, distributed between foundVert12
-        % and foundVert34. Select the vertex which is NOT the same as the last
-        % vertex. This indices a new line segments.
-        if ~isempty(foundVert12)
-            for iInd = 1:length(foundVert12)
-                if foundVert12(iInd) ~= lastIndex
-                    envelope = [envelope; lineSegments(foundVert12(iInd),3:4)];
-                    lastIndex = foundVert12(iInd);
-                    indexUsed(lastIndex) = 1;
-                    exitFlag = 1;
-                    break;
-                end
-            end
+% Create a vertex connectivity table. The 1e-12 value is here because
+% floats don't round well and == will not work. 
+vertConn = zeros(size(lineSegments,1),2);
+for i = 1:length(vertConn)
+    index = all(abs(lineSegments(:,1:2) - vertices(i,:)) < 1e-12,2);
+    vertConn(index,1) = i;
+    index = all(abs(lineSegments(:,3:4) - vertices(i,:)) < 1e-12,2);
+    vertConn(index,2) = i;
+end
+
+%% Start line segments sorting
+nEnvelopes = 1;
+allEnvelopes(1,1) = 1;     % First entry is always vertex 1
+for i = 1:size(vertConn,1)-1
+    % save vertex to find 
+    vertToFind = vertConn(i,2);
+    j = i+1; % helper index
+    % Find connecting node
+    foundShiftedInd =...
+        find(any(vertConn(j:end,:) == vertToFind,2), 1, 'first');
+    % If we have found an index 
+    if ~isempty(foundShiftedInd)
+        foundInd = foundShiftedInd + i;
+        % swap found vert conn row with j row
+        temp = vertConn(j,:);
+        % Now, decide whether to flip found row. We want vertex 2 of 
+        % previous line to be node 1 of the new line. 
+        if (vertConn(foundInd,1) == vertToFind)
+            vertConn(j,:) = vertConn(foundInd, [1,2]);
+        else 
+            vertConn(j,:) = vertConn(foundInd, [2,1]);
+        end
+        % Logic to prevent overwriting, if found row is next row. 
+        if (foundInd ~= j)
+            vertConn(foundInd,:) = temp;
+        end
+    % If we did not find an index, we either may have an open envelope or
+    % envelope may be convex and loops back on itself. 
+    else
+        % Check to see if we can find the first vertex in envelope
+        % appearing again (check for closure)
+        vertToFind = vertConn(allEnvelopes(nEnvelopes,1));
+        foundShiftedInd = ...
+            find(any(vertConn(j:end,:) == vertToFind,2), 1, 'first');
+        % If we do not find an index, it means this envelope is complete
+        % and manifold
+        if isempty(foundShiftedInd)
+            % Assign indices to finish current envelope, initialize next
+            allEnvelopes(nEnvelopes,2) = i;
+            nEnvelopes = nEnvelopes + 1;
+            allEnvelopes(nEnvelopes, 1) = j;
+        else
+            % This error should only occur if envelopes extend beyond
+            % sampling grid, which they should not. 
+            error('Literal Edge Case')
         end
         
-        % Fudge to ensure that there is an infinate loop after the first
-        % condition statement.
-        if exitFlag == 1
-            exitFlag = 0;
-            continue;
-        end
-        
-        if ~isempty(foundVert34)
-            for iInd = 1:length(foundVert34)
-                if foundVert34(iInd) ~= lastIndex
-                    envelope = [envelope; lineSegments(foundVert34(iInd),1:2)];
-                    lastIndex = foundVert34(iInd);
-                    indexUsed(lastIndex) = 1;
-                    break;
-                end
-            end
-        end
     end
-    
-    envelope = unique(envelope,'stable','rows');
-    individualEnvelopes{iEnvelope} = envelope;
-    iEnvelope = iEnvelope+1;
-    clear envelope;
-    lastIndex = find(indexUsed==0,1);
-    % if isempty(lastIndex)
-    %     break
-    % end
 end
+allEnvelopes(nEnvelopes,2) = j;
 
-% Choose the biggest envelope, based on number of indices. 
-for iEnv = 1:length(individualEnvelopes)
-    envSize(iEnv) = size(individualEnvelopes{iEnv},1);
-end
-[~,ind] = max(envSize);
-envelope = individualEnvelopes{ind};
+% Find largest envelope
+[~,envInds] = max(allEnvelopes(:,2)-allEnvelopes(:,1));
+
+% Convert indices in evelopes to array of (x,y)
+envInds = allEnvelopes(envInds, :);
+envelope = vertices(vertConn(envInds(1):envInds(2),1),:);
 
 % For debugging, plot all envelopes
 if strcmp(nvArg.Diagnostics,'detailed')
-    for iEnv = 1:length(individualEnvelopes)
-            plot(individualEnvelopes{iEnv}(:,1),...
-            individualEnvelopes{iEnv}(:,2),'.-b','LineWidth',1.0)   
+    for iEnv = 1:nEnvelopes
+        envInds = allEnvelopes(iEnv, :);
+        plot(vertices(vertConn(envInds(1):envInds(2),1),1),...
+            vertices(vertConn(envInds(1):envInds(2),1),2),...
+            '.-b','LineWidth',1.0)
     end
 end
 
