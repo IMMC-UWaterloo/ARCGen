@@ -73,6 +73,11 @@
 %       signal registration process. A value of 10^-2 (default) to 10^3 is
 %       recommended, but the exact value will need to be tuned to a
 %       specific problem. 
+% UseParrallel: Character array used to enable parallel thread calculations
+%       for signal registration and envelope extraction. Significantly
+%       reduces runtime when signals have 100k+ points or 500+ resampling
+%       points and corridor resolution. Requires the Parallel Computing 
+%       Toolbox Options: 'on', 'off' (default). 
 %
 % MANDATORY OUTPUTS:
 % ------------------

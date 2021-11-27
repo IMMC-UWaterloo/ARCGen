@@ -44,7 +44,9 @@ ARCGen contains many optional inputs that allow the user to control many of the 
 
 `nWarpCtrlPts`: An integer defining the number of interior control points used for signal registration. Default: 0 (disables signal registration)
 
-`WarpingPenalty`: Afloat defining the penalty factor used during signal registration. Default: 1e-2. 
+`WarpingPenalty`: A float defining the penalty factor used during signal registration. Default: 1e-2. 
+
+`UseParallel`: A character array used to control if the Parallel Computing Toolbox is used to accelerate signal registration and envelope extraction. Thisoption requires MATLAB's Parallel Computing Toolbox. Sigificantly reduces runtime for signals of 100K+ points or using 500+ resampling points and corridor resolution points. Input options: 'on', 'off' (default).
 
 `Diagnostics`: A character array used to activate diagnostic plots. Useful for tracing anomalous behaviours. Options: 'off' (default), 'on', 'detailed'.
 
@@ -84,3 +86,12 @@ Hartlen et al. (202x) is currently being prepared.
 
 # License
 _TODO: Add license closer to release date._
+
+# Change Log
+## R2021d
+R2021d represents a significant performance improvement over previous versions. Corridor extraction has been completely refactored to reduce runtime in that part of the code by upwards of 10x. Corridor extraction is also far more robust than previous verions, which should eliminate crashes in some use case. Runtimes assocaited with signal registration and corridor extraction can be further reduced through the integration of MATLAB's Parallel Computing Toolbox. 
+- Added the 'UseParallel' to accelerate signal registration and envelope extraction. Requries the MATLAB Parallel Computing Toolbox. 
+- Accelerated signal registration for signals with a very large number of points using pre-compiled MEX code. 
+- Completely redeveloped envelop extraction algorithm to significantly reduce computational expense. 
+- Envelope splitting to produce inner and outer corridors is now far more robust and should eliminate any 'iIntStart' or 'iIntEnd' that have cropped up in the past. 
+  
