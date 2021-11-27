@@ -682,7 +682,7 @@ for i = 1:length(vertConn)
     vertConn(index,2) = i;
 end
 
-%% Start line segments sorting
+%% Start line segments sorting and envelope extraction
 nEnvelopes = 1;
 allEnvelopes(1,1) = 1;     % First entry is always vertex 1
 for i = 1:size(vertConn,1)-1
@@ -750,41 +750,92 @@ if strcmp(nvArg.Diagnostics,'detailed')
     end
 end
 
-% At this point, 'envelope' has all vertex points. Ordering, clockwise or
-% clock-wise, is not known, but can be accounted for. 
+%% Divide the envelope into corridors. 
+% To break the largest envelop into inner and outer corridors, we need to
+% account for several edge cases. First, we test to see if there are any
+% intercepts of the characteristic average and the largest envelope. 
+closedEnvelope = [envelope; envelope(1,:)];
+[~,~,indexIntercept] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+    charAvg(:,1),charAvg(:,2));
 
-% To divide upper and lower corridors, we first extend the characteristic
-% average. By choice, this extension is a linear extrapolation based on the
-% first or last two points. But we also need to include a section of the
-% char. avg. curve as the corridor may not extend to start of char. arv. 
+% If we find two intercepts, then we have no problem
+if size(indexIntercept,1) >=2
+    iIntStart = indexIntercept(1,1);
+    iIntEnd = indexIntercept(end,1);
 
-aLenInterval = 1./nvArg.nResamplePoints;
-indexLength = round(0.2*length(charAvg));
-
-aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
-    .*1.1.*max(stdevData);
-aLenExtension(isinf(aLenExtension)) = 0;
-aLenExtension = max(aLenExtension);
-
-lineStart = [...
-    interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
-    interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
-    charAvg(1:indexLength,:)];
-
-lineEnd =  [charAvg(end-indexLength:end,:);...
-    interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
-    (1+aLenExtension),'linear','extrap'),...
-    interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
-    (1+aLenExtension),'linear','extrap')];
-
-%Find intercepts to divide line using Poly
-[~,~,iIntStart] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineStart(:,1),lineStart(:,2));
-iIntStart = iIntStart(1);
-
-[~,~,iIntEnd] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineEnd(:,1),lineEnd(:,2));
-iIntEnd = iIntEnd(1);
+% If we find only one intercept, we need to determine if the intercept is a
+% the start or end of the envelope. Then we need to extend the opposite
+% side of the characteristic average to intercept the envelope. 
+elseif size(indexIntercept,1) == 1
+    % Compute extension 
+    aLenInterval = 1./nvArg.nResamplePoints;
+    indexLength = round(0.2*length(charAvg));
+    
+    aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+        .*1.1.*max(stdevData);
+    aLenExtension(isinf(aLenExtension)) = 0;
+    aLenExtension = max(aLenExtension);
+    % If the single found point is inside the envelope, the found intercept
+    % is at the end. Therefore extend the start
+    if inpolygon(charAvg(indexIntercept(2),1),...
+            charAvg(indexIntercept(2),1), envelope(:,1),envelope(:,2))
+        
+        iIntEnd = indexIntercept(1);
+        lineStart = [...
+            interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+            interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
+            charAvg(1:indexLength,:)];
+        
+        %Find intercepts to divide line using Poly
+        [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+            lineStart(:,1),lineStart(:,2));
+        iIntStart = iIntStart(1);
+    % If the single found point is outside the envelope, the found
+    % intercept is the start
+    else
+        iIntStart = indexIntercept(1);
+        lineEnd =  [charAvg(end-indexLength:end,:);...
+            interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+            (1+aLenExtension),'linear','extrap'),...
+            interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+            (1+aLenExtension),'linear','extrap')];
+        %Find intercepts to divide line using Poly
+        [~,~,iIntEnd] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+            lineEnd(:,1),lineEnd(:,2));
+        iIntEnd = iIntEnd(1);
+    end
+    
+% If we find no intercepts, we need to extend both sides of characteristic
+% average to intercept the envelop.
+else
+    aLenInterval = 1./nvArg.nResamplePoints;
+    indexLength = round(0.2*length(charAvg));
+    
+    aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+        .*1.1.*max(stdevData);
+    aLenExtension(isinf(aLenExtension)) = 0;
+    aLenExtension = max(aLenExtension);
+    
+    lineStart = [...
+        interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+        interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
+        charAvg(1:indexLength,:)];
+    
+    lineEnd =  [charAvg(end-indexLength:end,:);...
+        interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+        (1+aLenExtension),'linear','extrap'),...
+        interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+        (1+aLenExtension),'linear','extrap')];
+    
+    %Find intercepts to divide line using Poly
+    [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+        lineStart(:,1),lineStart(:,2));
+    iIntStart = iIntStart(1);
+    
+    [~,~,iIntEnd] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+        lineEnd(:,1),lineEnd(:,2));
+    iIntEnd = iIntEnd(1);
+end
 
 % To divide inner or outer corridors, first determine if polygon is clockwise
 % or counter-clockwise. Then, based on which index is large, separate out
@@ -828,10 +879,10 @@ outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
 if strcmp(nvArg.Diagnostics,'detailed')
     % Plot corridors, avgs
     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
-    plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
-        'LineWidth',2.0,'MarkerSize',16)
-    plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
-        'LineWidth',2.0,'MarkerSize',16)
+%     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
+%         'LineWidth',2.0,'MarkerSize',16)
+%     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
+%         'LineWidth',2.0,'MarkerSize',16)
     xlim([min(xx(:)),max(xx(:))])
     ylim([min(yy(:)),max(yy(:))])
 end
