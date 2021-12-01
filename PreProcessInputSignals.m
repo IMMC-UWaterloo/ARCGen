@@ -3,13 +3,18 @@
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           13-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT     
-% Date:           18-Sep-2021           
+% Date:           30-Nov-2021           
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % This script pre-processes input signals which will be subsequently used
 % for to generate a characteristic average and response corridors.  
 % Preprocessing amalgoamtes several curves, ensures the validity of said
 % curves, and saves the data into a single MATLAB data file for later use. 
+%
+% This script is provided as part of ARCGen, which is released under a GNU 
+% GPL v3 license. No warranty or support is provided. The authors any
+% responsibility for the validity, accuracy, or applicability of any 
+% results obtained from this code.
 %
 % Input signals must be saved in individual CSV files, with data saved in
 % columns. The user can set which two column indices are used as the input

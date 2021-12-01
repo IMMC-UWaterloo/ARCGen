@@ -3,7 +3,7 @@
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           27-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT
-% Date:           19-Sep-2021
+% Date:           30-Nov-2021
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
@@ -13,17 +13,21 @@
 % on arc-length. Corridors are extracted using a marching squares
 % algorithm.
 %
+% ARCGen is released under a GNU GPL v3 license. No warranty or support is
+% provided. The authors any responsibility for the validity, accuracy, or 
+% applicability of any results obtained from this code.
+%
 % This function has one mandatory input, four outputs, and many optional
 % inputs. Optional inputs are defined using name-value pair arguments. 
 %
 % Usage notes: 
 % It is common to see errors when running this function if the number of
-% resampling points or corridor extraction grid is too sparse. This is 
-% error also occurs if standard deviation in a particular direction is too
-% small for subsequent ellipses to overlap significantly. This problem can
-% be fixed by increasing 'nResamplePoints' and 'CorridorRes' until the
-% error goes array. Turning 'Diagnostics' to 'detailed' can help identify
-% these issues. 
+% resampling points or corridor resolution is too sparse or signals 
+% exhibit significant variablity not accounted for through signal 
+% registration. This tends to manifest in either truncated corridors or the
+% code termininating in an error. Often increasing resampling points or
+% corridor resolution. Turning 'Diagnostics' to 'detailed' can help 
+% identify these issues. 
 %
 % Computed corridors will often not extend all the way to the shared origin
 % of input signals. This is because small low st. dev. at this shared point
