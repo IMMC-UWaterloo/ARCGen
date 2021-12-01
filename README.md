@@ -1,10 +1,10 @@
 # ARCGen - Arc-length Response Corridor Generation
 
-Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen presents a set of methodologies for computing response corridors and the characteristic average of experimental data capable of accommodating all types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
+Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen et al. (202x).
+This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (202x).
 
-ARCGen is released under the open-sourced GPL v3 license. _TODO: add specifics_. 
+ARCGen is released under the open-sourced GNU GPL v3 license.
 
 # Usage
 ARCGen is distributed as a MATLAB function and makes extensive use of name-value pair arguments to define options. In its most basic, ARCGen can be run with the following mandatory inputs and outputs. While all mandatory and optional arguments are described below, more information is available in in-code documentation. 
@@ -44,7 +44,9 @@ ARCGen contains many optional inputs that allow the user to control many of the 
 
 `nWarpCtrlPts`: An integer defining the number of interior control points used for signal registration. Default: 0 (disables signal registration)
 
-`WarpingPenalty`: Afloat defining the penalty factor used during signal registration. Default: 1e-2. 
+`WarpingPenalty`: A float defining the penalty factor used during signal registration. Default: 1e-2. 
+
+`UseParallel`: A character array used to control if the Parallel Computing Toolbox is used to accelerate signal registration and envelope extraction. Thisoption requires MATLAB's Parallel Computing Toolbox. Sigificantly reduces runtime for signals of 100K+ points or using 500+ resampling points and corridor resolution points. Input options: 'on', 'off' (default).
 
 `Diagnostics`: A character array used to activate diagnostic plots. Useful for tracing anomalous behaviours. Options: 'off' (default), 'on', 'detailed'.
 
@@ -80,7 +82,17 @@ Following arc-length reparameterization, all input signals will have the same nu
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) are large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
 
 # References
-Hartlen et al. (202x) is currently being prepared. 
+Hartlen & Cronin (202x) is currently being prepared. 
 
 # License
 _TODO: Add license closer to release date._
+
+# Change Log
+## R2021d
+R2021d represents a significant performance improvement over previous versions. Corridor extraction has been completely refactored to reduce runtime in that part of the code by upwards of 10x. Corridor extraction is also far more robust than previous verions, which should eliminate crashes in some use case. Runtimes assocaited with signal registration and corridor extraction can be further reduced through the integration of MATLAB's Parallel Computing Toolbox. Additionally, R2021d represents the first release with a formal license, GNU GPL v3
+- Added the 'UseParallel' to accelerate signal registration and envelope extraction. Requries the MATLAB Parallel Computing Toolbox. 
+- Accelerated signal registration for signals with a very large number of points using pre-compiled MEX code. 
+- Completely redeveloped envelop extraction algorithm to significantly reduce computational expense. 
+- Envelope splitting to produce inner and outer corridors is now far more robust and should eliminate any 'iIntStart' or 'iIntEnd' that have cropped up in the past. 
+- Integration of the GNU GPL v3 license. 
+  

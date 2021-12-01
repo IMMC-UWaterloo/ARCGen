@@ -3,7 +3,7 @@
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           27-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT
-% Date:           19-Sep-2021
+% Date:           30-Nov-2021
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
@@ -13,17 +13,21 @@
 % on arc-length. Corridors are extracted using a marching squares
 % algorithm.
 %
+% ARCGen is released under a GNU GPL v3 license. No warranty or support is
+% provided. The authors any responsibility for the validity, accuracy, or 
+% applicability of any results obtained from this code.
+%
 % This function has one mandatory input, four outputs, and many optional
 % inputs. Optional inputs are defined using name-value pair arguments. 
 %
 % Usage notes: 
 % It is common to see errors when running this function if the number of
-% resampling points or corridor extraction grid is too sparse. This is 
-% error also occurs if standard deviation in a particular direction is too
-% small for subsequent ellipses to overlap significantly. This problem can
-% be fixed by increasing 'nResamplePoints' and 'CorridorRes' until the
-% error goes array. Turning 'Diagnostics' to 'detailed' can help identify
-% these issues. 
+% resampling points or corridor resolution is too sparse or signals 
+% exhibit significant variablity not accounted for through signal 
+% registration. This tends to manifest in either truncated corridors or the
+% code termininating in an error. Often increasing resampling points or
+% corridor resolution. Turning 'Diagnostics' to 'detailed' can help 
+% identify these issues. 
 %
 % Computed corridors will often not extend all the way to the shared origin
 % of input signals. This is because small low st. dev. at this shared point
@@ -73,6 +77,11 @@
 %       signal registration process. A value of 10^-2 (default) to 10^3 is
 %       recommended, but the exact value will need to be tuned to a
 %       specific problem. 
+% UseParrallel: Character array used to enable parallel thread calculations
+%       for signal registration and envelope extraction. Significantly
+%       reduces runtime when signals have 100k+ points or 500+ resampling
+%       points and corridor resolution. Requires the Parallel Computing 
+%       Toolbox Options: 'on', 'off' (default). 
 %
 % MANDATORY OUTPUTS:
 % ------------------
@@ -106,11 +115,26 @@ addParameter(nvArgObj, 'CorridorRes',       100);
 addParameter(nvArgObj, 'MinCorridorWidth',  0); 
 addParameter(nvArgObj, 'nWarpCtrlPts',      0);
 addParameter(nvArgObj, 'WarpingPenalty',    1e-2);
+addParameter(nvArgObj, 'UseParallel',       'off');
 nvArgObj.KeepUnmatched = true;
 nvArgObj.CaseSensitive = false;
 
 parse(nvArgObj,varargin{:});
 nvArg = nvArgObj.Results;  % Structure created for convenience
+
+% check if parallel toobox is installed, then if parpool is running. Error
+% out if not installed, start pool if not already started. 
+v = ver;
+hasParallel = any(strcmp(cellstr(char(v.Name)), 'Parallel Computing Toolbox'));
+if strcmp(nvArg.UseParallel,'on')
+    if ~hasParallel
+        error('Parallel Computing Toolbox is not installed. Set option UseParallel to off')
+    end
+    p = gcp('nocreate');
+    if isempty(p)
+        parpool();
+    end
+end
 
 %% Process input options
 % Check if structure with specID, struct w/o specID, cell array. Error out
@@ -286,10 +310,18 @@ if nvArg.nWarpCtrlPts > 0
         end
     end
     
-    % Setup optimization options
-    optOptions = optimoptions('fmincon',...
+    % Setup optimization options ('UseParallel' option active here)
+    if strcmp(nvArg.UseParallel,'on')
+        optOptions = optimoptions('fmincon',...
+            'MaxFunctionEvaluations',max(3000, (nWarp+1).*1000),...
+            'Display','off',...
+            'UseParallel',true);
+    else
+        optOptions = optimoptions('fmincon',...
         'MaxFunctionEvaluations',max(3000, (nWarp+1).*1000),...
-        'Display','off');
+        'Display','off',...
+        'UseParallel',false);
+    end
     
     % Execute optimization and compute warped signals
     optWarpArray = fmincon(@(x)warpingObjective(x,nWarp,...
@@ -297,7 +329,7 @@ if nvArg.nWarpCtrlPts > 0
         x0, A, b, [], [], lb, ub, [], optOptions);
     optWarpArray = reshape(optWarpArray,[],nWarp);
     [warpedSignals, signalX, signalY] = ...
-        warpArcLength(optWarpArray,inputSignals,nvArg);
+        warpArcLength(optWarpArray,inputSignals,nvArg.nResamplePoints);
     
 
     % Compute correlation score
@@ -442,7 +474,6 @@ if strcmp(nvArg.Diagnostics,'detailed')
 end
 
 %% Begin marching squares algorithm
-
 % Create grids based on upper and lower of characteristic average plus 120%
 % of maximum standard deviation
 scaleFact = 1.2*nvArg.EllipseKFact;
@@ -456,13 +487,30 @@ scaleFact = 1.2*nvArg.EllipseKFact;
 zz = zeros(size(xx));   % initalize grid of ellipse values
 
 % For each grid point, find the max of each standard deviation ellipse
-for iPt = 1:nvArg.CorridorRes
-    for jPt = 1:nvArg.CorridorRes
-        zz(iPt,jPt) = max(...
-            (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
-            (stdevData(:,1).*nvArg.EllipseKFact).^2 ...
-            + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
-            (stdevData(:,2).*nvArg.EllipseKFact).^2).^-1));
+kFact = nvArg.EllipseKFact; % faster if no struct call in inner loop. 
+nRes = nvArg.CorridorRes;   % again, for speed
+% If 'UseParallel' is 'on', grid evaluation is performed using a parallel
+% for loop. 
+if strcmp(nvArg.UseParallel,'on')
+    parfor iPt = 1:nRes
+        for jPt = 1:nRes
+            zz(iPt,jPt) = max(...
+                (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
+                (stdevData(:,1).*kFact).^2 ...
+                + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
+                (stdevData(:,2).*kFact).^2).^-1));
+        end
+    end
+% otherwise, use a standard forloop
+else
+    for iPt = 1:nRes
+        for jPt = 1:nRes
+            zz(iPt,jPt) = max(...
+                (((xx(iPt,jPt) - charAvg(:,1)).^2 ./ ...
+                (stdevData(:,1).*kFact).^2 ...
+                + (yy(iPt,jPt) - charAvg(:,2)).^2 ./ ...
+                (stdevData(:,2).*kFact).^2).^-1));
+        end
     end
 end
 
@@ -629,132 +677,174 @@ for iPt = 1:(nvArg.CorridorRes-1)  % Rows (y-axis)
 end
 lineSegments = lineSegments(1:iSeg,:);
 
-% After the marching squares algorithm, line segments are not sorted.
-% Segments need to be sorted in order to create a proper polygon. 
-%
-% One issues with very small ellipses is orphan envelopes can occur. This
-% sorting algorithm attempts to find all envelopes. Final corridor
-% extraction is only done on the largest envelope. Largest is defined by
-% the number of vertices. 
-%
-% Start sorting algorithm in the "middle" of the polygon, under the
-% assumption that there is fewer orphans in the middle. But this algorithm
-% should be fine if it is an orphan. 
-iEnvelope = 1;
-indexUsed = zeros(size(lineSegments,1),1);
-lastIndex = round(0.5*size(lineSegments,1));
+% Extract list of unique vertices from line segmens
+vertices = [lineSegments(:,1:2);lineSegments(:,3:4)];
+vertices = uniquetol(vertices,eps,'ByRows', true);
 
-while ~all(indexUsed==1)
-    % Use the index of lowest y-value to seed the envelope. Envelope is
-    % specifically vertices, not line segments. All vertices are duplicated in
-    % line segments, assuming no orphans.
-    envelope = lineSegments(lastIndex,1:2);
-    % Add second vertex, as it uses the same line segment
-    envelope = [envelope; lineSegments(lastIndex,3:4)];
-    indexUsed(lastIndex) = 1;
-    
-    exitFlag = 0;   % Set exit flag fudge
-    % Go though all vertices looking for the next connecting face
-    for iVerts = 2:size(lineSegments,1)
-        % For an enclosed polygon, all lines share vertices
-        % Find the all repeated vertices
-        foundVert12 = find(all(ismembertol(lineSegments(:,1:2), envelope(end,:)), 2));
-        foundVert34 = find(all(ismembertol(lineSegments(:,3:4), envelope(end,:)), 2));
-        
-        % there will only ever be two points, distributed between foundVert12
-        % and foundVert34. Select the vertex which is NOT the same as the last
-        % vertex. This indices a new line segments.
-        if ~isempty(foundVert12)
-            for iInd = 1:length(foundVert12)
-                if foundVert12(iInd) ~= lastIndex
-                    envelope = [envelope; lineSegments(foundVert12(iInd),3:4)];
-                    lastIndex = foundVert12(iInd);
-                    indexUsed(lastIndex) = 1;
-                    exitFlag = 1;
-                    break;
-                end
-            end
+% Create a vertex connectivity table. The 1e-12 value is here because
+% floats don't round well and == will not work. 
+vertConn = zeros(size(lineSegments,1),2);
+for i = 1:length(vertConn)
+    index = all(abs(lineSegments(:,1:2) - vertices(i,:)) < 1e-12,2);
+    vertConn(index,1) = i;
+    index = all(abs(lineSegments(:,3:4) - vertices(i,:)) < 1e-12,2);
+    vertConn(index,2) = i;
+end
+
+%% Start line segments sorting and envelope extraction
+nEnvelopes = 1;
+allEnvelopes(1,1) = 1;     % First entry is always vertex 1
+for i = 1:size(vertConn,1)-1
+    % save vertex to find 
+    vertToFind = vertConn(i,2);
+    j = i+1; % helper index
+    % Find connecting node
+    foundShiftedInd =...
+        find(any(vertConn(j:end,:) == vertToFind,2), 1, 'first');
+    % If we have found an index 
+    if ~isempty(foundShiftedInd)
+        foundInd = foundShiftedInd + i;
+        % swap found vert conn row with j row
+        temp = vertConn(j,:);
+        % Now, decide whether to flip found row. We want vertex 2 of 
+        % previous line to be node 1 of the new line. 
+        if (vertConn(foundInd,1) == vertToFind)
+            vertConn(j,:) = vertConn(foundInd, [1,2]);
+        else 
+            vertConn(j,:) = vertConn(foundInd, [2,1]);
+        end
+        % Logic to prevent overwriting, if found row is next row. 
+        if (foundInd ~= j)
+            vertConn(foundInd,:) = temp;
+        end
+    % If we did not find an index, we either may have an open envelope or
+    % envelope may be convex and loops back on itself. 
+    else
+        % Check to see if we can find the first vertex in envelope
+        % appearing again (check for closure)
+        vertToFind = vertConn(allEnvelopes(nEnvelopes,1));
+        foundShiftedInd = ...
+            find(any(vertConn(j:end,:) == vertToFind,2), 1, 'first');
+        % If we do not find an index, it means this envelope is complete
+        % and manifold
+        if isempty(foundShiftedInd)
+            % Assign indices to finish current envelope, initialize next
+            allEnvelopes(nEnvelopes,2) = i;
+            nEnvelopes = nEnvelopes + 1;
+            allEnvelopes(nEnvelopes, 1) = j;
+        else
+            % This error should only occur if envelopes extend beyond
+            % sampling grid, which they should not. 
+            error('Literal Edge Case')
         end
         
-        % Fudge to ensure that there is an infinate loop after the first
-        % condition statement.
-        if exitFlag == 1
-            exitFlag = 0;
-            continue;
-        end
-        
-        if ~isempty(foundVert34)
-            for iInd = 1:length(foundVert34)
-                if foundVert34(iInd) ~= lastIndex
-                    envelope = [envelope; lineSegments(foundVert34(iInd),1:2)];
-                    lastIndex = foundVert34(iInd);
-                    indexUsed(lastIndex) = 1;
-                    break;
-                end
-            end
-        end
     end
-    
-    envelope = unique(envelope,'stable','rows');
-    individualEnvelopes{iEnvelope} = envelope;
-    iEnvelope = iEnvelope+1;
-    clear envelope;
-    lastIndex = find(indexUsed==0,1);
-    % if isempty(lastIndex)
-    %     break
-    % end
 end
+allEnvelopes(nEnvelopes,2) = j;
 
-% Choose the biggest envelope, based on number of indices. 
-for iEnv = 1:length(individualEnvelopes)
-    envSize(iEnv) = size(individualEnvelopes{iEnv},1);
-end
-[~,ind] = max(envSize);
-envelope = individualEnvelopes{ind};
+% Find largest envelope
+[~,envInds] = max(allEnvelopes(:,2)-allEnvelopes(:,1));
+
+% Convert indices in evelopes to array of (x,y)
+envInds = allEnvelopes(envInds, :);
+envelope = vertices(vertConn(envInds(1):envInds(2),1),:);
 
 % For debugging, plot all envelopes
 if strcmp(nvArg.Diagnostics,'detailed')
-    for iEnv = 1:length(individualEnvelopes)
-            plot(individualEnvelopes{iEnv}(:,1),...
-            individualEnvelopes{iEnv}(:,2),'.-b','LineWidth',1.0)   
+    for iEnv = 1:nEnvelopes
+        envInds = allEnvelopes(iEnv, :);
+        plot(vertices(vertConn(envInds(1):envInds(2),1),1),...
+            vertices(vertConn(envInds(1):envInds(2),1),2),...
+            '.-b','LineWidth',1.0)
     end
 end
 
-% At this point, 'envelope' has all vertex points. Ordering, clockwise or
-% clock-wise, is not known, but can be accounted for. 
+%% Divide the envelope into corridors. 
+% To break the largest envelop into inner and outer corridors, we need to
+% account for several edge cases. First, we test to see if there are any
+% intercepts of the characteristic average and the largest envelope. 
+closedEnvelope = [envelope; envelope(1,:)];
+[~,~,indexIntercept] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+    charAvg(:,1),charAvg(:,2));
 
-% To divide upper and lower corridors, we first extend the characteristic
-% average. By choice, this extension is a linear extrapolation based on the
-% first or last two points. But we also need to include a section of the
-% char. avg. curve as the corridor may not extend to start of char. arv. 
+% If we find two intercepts, then we have no problem
+if size(indexIntercept,1) >=2
+    iIntStart = indexIntercept(1,1);
+    iIntEnd = indexIntercept(end,1);
 
-aLenInterval = 1./nvArg.nResamplePoints;
-indexLength = round(0.2*length(charAvg));
-
-aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
-    .*1.1.*max(stdevData);
-aLenExtension(isinf(aLenExtension)) = 0;
-aLenExtension = max(aLenExtension);
-
-lineStart = [...
-    interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
-    interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
-    charAvg(1:indexLength,:)];
-
-lineEnd =  [charAvg(end-indexLength:end,:);...
-    interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
-    (1+aLenExtension),'linear','extrap'),...
-    interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
-    (1+aLenExtension),'linear','extrap')];
-
-%Find intercepts to divide line using Poly
-[~,~,iIntStart] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineStart(:,1),lineStart(:,2));
-iIntStart = iIntStart(1);
-
-[~,~,iIntEnd] = polyxpoly(envelope(:,1),envelope(:,2),...
-    lineEnd(:,1),lineEnd(:,2));
-iIntEnd = iIntEnd(1);
+% If we find only one intercept, we need to determine if the intercept is a
+% the start or end of the envelope. Then we need to extend the opposite
+% side of the characteristic average to intercept the envelope. 
+elseif size(indexIntercept,1) == 1
+    % Compute extension 
+    aLenInterval = 1./nvArg.nResamplePoints;
+    indexLength = round(0.2*length(charAvg));
+    
+    aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+        .*1.1.*max(stdevData);
+    aLenExtension(isinf(aLenExtension)) = 0;
+    aLenExtension = max(aLenExtension);
+    % If the single found point is inside the envelope, the found intercept
+    % is at the end. Therefore extend the start
+    if inpolygon(charAvg(indexIntercept(2),1),...
+            charAvg(indexIntercept(2),1), envelope(:,1),envelope(:,2))
+        
+        iIntEnd = indexIntercept(1);
+        lineStart = [...
+            interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+            interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
+            charAvg(1:indexLength,:)];
+        
+        %Find intercepts to divide line using Poly
+        [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+            lineStart(:,1),lineStart(:,2));
+        iIntStart = iIntStart(1);
+    % If the single found point is outside the envelope, the found
+    % intercept is the start
+    else
+        iIntStart = indexIntercept(1);
+        lineEnd =  [charAvg(end-indexLength:end,:);...
+            interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+            (1+aLenExtension),'linear','extrap'),...
+            interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+            (1+aLenExtension),'linear','extrap')];
+        %Find intercepts to divide line using Poly
+        [~,~,iIntEnd] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+            lineEnd(:,1),lineEnd(:,2));
+        iIntEnd = iIntEnd(1);
+    end
+    
+% If we find no intercepts, we need to extend both sides of characteristic
+% average to intercept the envelop.
+else
+    aLenInterval = 1./nvArg.nResamplePoints;
+    indexLength = round(0.2*length(charAvg));
+    
+    aLenExtension = abs(aLenInterval./(charAvg(1,:)-charAvg(2,:)))...
+        .*1.1.*max(stdevData);
+    aLenExtension(isinf(aLenExtension)) = 0;
+    aLenExtension = max(aLenExtension);
+    
+    lineStart = [...
+        interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
+        interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
+        charAvg(1:indexLength,:)];
+    
+    lineEnd =  [charAvg(end-indexLength:end,:);...
+        interp1([1,1-aLenInterval],[charAvg(end,1),charAvg(end-1,1)],...
+        (1+aLenExtension),'linear','extrap'),...
+        interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
+        (1+aLenExtension),'linear','extrap')];
+    
+    %Find intercepts to divide line using Poly
+    [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+        lineStart(:,1),lineStart(:,2));
+    iIntStart = iIntStart(1);
+    
+    [~,~,iIntEnd] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
+        lineEnd(:,1),lineEnd(:,2));
+    iIntEnd = iIntEnd(1);
+end
 
 % To divide inner or outer corridors, first determine if polygon is clockwise
 % or counter-clockwise. Then, based on which index is large, separate out
@@ -798,10 +888,10 @@ outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
 if strcmp(nvArg.Diagnostics,'detailed')
     % Plot corridors, avgs
     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
-    plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
-        'LineWidth',2.0,'MarkerSize',16)
-    plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
-        'LineWidth',2.0,'MarkerSize',16)
+%     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
+%         'LineWidth',2.0,'MarkerSize',16)
+%     plot(lineEnd(:,1),lineEnd(:,2),'.-k','DisplayName','Char Avg',...
+%         'LineWidth',2.0,'MarkerSize',16)
     xlim([min(xx(:)),max(xx(:))])
     ylim([min(yy(:)),max(yy(:))])
 end
@@ -843,8 +933,19 @@ warpArray = reshape(optimWarp,[],nCtrlPts);
 penaltyScore = warpingPenalty(warpArray,nvArg.WarpingPenalty,nvArg);
 penaltyScore = mean(penaltyScore);
 
-% Perform warping
-[~, signalsX, signalsY] = warpArcLength(warpArray,inputSignals,nvArg);
+% Perform warping - non-mex version
+% [~, signalsX, signalsY] = warpArcLength(warpArray,inputSignals,...
+%     nvArg.nResamplePoints);
+
+% IMPORTANT: This is a compiled mex verison of warpArcLength. The mex
+% function cannot be modified. If warpArcLength is updated later, you will
+% also need to recompile the mex function
+signalCellArray = cell(nSignal,1);
+for i=1:nSignal
+signalCellArray{i} = inputSignals(i).data;
+end
+[~, signalsX, signalsY] = warpArcLength_mex(warpArray,signalCellArray,nvArg.nResamplePoints);
+
 % Compute correlation score
 [corrScore, ~] = evalCorrScore(signalsX,signalsY);
 % corrScore is a maximization goal. Turn into a minimization goal
@@ -854,20 +955,18 @@ end
 
 %% Function used to warp arc-length
 function [warpedSignals, signalsX, signalsY]...
-    = warpArcLength(warpArray, inputSignals, nvArg)
+    = warpArcLength(warpArray, inputSignals, nResamplePoints)
 % Warp array: each row is warping points for an input signal, each column
 % is warped point. Control points are interpolated  on [0,1] assuming
 % equal spacing. 
-[~, nCtrlPts] = size(warpArray);
 nSignals = length(inputSignals);
-
 
 % lmCtrlPts = linspace(0,1,2+nCtrlPts);
 % lmCtrlPts = [0,warpArray(end,:),1];
 
 % Initialize matrices
-signalsX = zeros(nvArg.nResamplePoints, nSignals);
-signalsY = zeros(nvArg.nResamplePoints, nSignals);
+signalsX = zeros(nResamplePoints, nSignals);
+signalsY = zeros(nResamplePoints, nSignals);
 warpedSignals = cell(nSignals,1);
 
 for iSignal = 1:nSignals
@@ -887,7 +986,7 @@ for iSignal = 1:nSignals
     warpedNormAlen = pchip(lmCtrlPts,warpedCtrlPts,signal(:,4));
       
     % Now uniformly resample normalzied arc-length
-    resamNormwarpedAlen = linspace(0,1, nvArg.nResamplePoints)';
+    resamNormwarpedAlen = linspace(0,1, nResamplePoints)';
     resampX = interp1(warpedNormAlen, signal(:,1), resamNormwarpedAlen,'linear','extrap');
     resampY = interp1(warpedNormAlen, signal(:,2), resamNormwarpedAlen,'linear','extrap');
     % Assign to array for correlation calc
