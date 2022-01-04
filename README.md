@@ -2,7 +2,7 @@
 
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (202x).
+This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (202x) (Under review).
 
 ARCGen is released under the open-sourced GNU GPL v3 license.
 
@@ -82,10 +82,7 @@ Following arc-length reparameterization, all input signals will have the same nu
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) are large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
 
 # References
-Hartlen & Cronin (202x) is currently being prepared. 
-
-# License
-_TODO: Add license closer to release date._
+Hartlen & Cronin (202x) "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data" is currently being prepared. 
 
 # Change Log
 ## R2021d
