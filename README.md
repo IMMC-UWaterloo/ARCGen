@@ -2,9 +2,38 @@
 
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (202x) (Under review).
+This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022) (Under review).
 
 ARCGen is released under the open-sourced GNU GPL v3 license.
+
+# Dependencies
+
+ARCGen requires two MATLAB toolboxes
+- Optimization Toolbox: Required for signal registration
+- Parallel Computing Toolbox: (optional) Required to accelerate signal registration and corridor generation
+
+# Referencing
+
+If you use ARCGen in published research, please use the following citation in your research. 
+
+Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." Frontiers in Bioengineering and Biotechnology, Vol and DOI to be added. 
+
+Bibtex format:
+
+@article{Hartlen_Cronin_2022,
+  author =  "Devon C. Hartlen and Duane S. Cronin",
+  title =   "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data",
+  year =    "2022",
+  journal = "Frontiers in Bioengineering and Biotechnology",
+  volume =   "XX",
+  DOI =      "10.3389/XXXX"
+}
+  
+# Contributing
+
+If you find discover any bugs or issues, or would like to suggest improvements, please create an [issue on this github repostiory](https://github.com/DCHartlen/ARCGen/issues). You are invited free to submit pull requests to integrate fixes and features directly into ARCGen, although pull requests will be reviewed before integration. 
+
+Anyone is free to fork ARCGen for thier own work, so long as you follow the requirements of the GNU GPL v3 license.
 
 # Usage
 ARCGen is distributed as a MATLAB function and makes extensive use of name-value pair arguments to define options. In its most basic, ARCGen can be run with the following mandatory inputs and outputs. While all mandatory and optional arguments are described below, more information is available in in-code documentation. 
@@ -80,9 +109,6 @@ Signal registration is an optional process and is not needed if input signals ar
 Following arc-length reparameterization, all input signals will have the same number of points at the same normalized arc-length. If signal registration has been performed, the registered points will be used for statistical analysis. Statistical analysis is undertaken in a point-wise fashion at each normalized arc-length. This analysis assumes points are uncorrelated and distributed according to a two-dimensional normal distribution. Based on this assumption, an elliptical confidence region can be constructed at each normalized arc-length. The length of the major and minor axes of these ellipses are proportional to the standard deviation at each arc-length. However, unlike a one-dimensional confidence region, where a plus and minus one standard deviation region will account for 68% of variability, the same two-dimensional elliptical region only accounts for 38%. To control the size of the region based on variance, the quantile function of the chi-squared distribution at the desired variance or p-value can be used to scale the size of the ellipse (optional input option `EllipseKFact`).
 
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) are large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
-
-# References
-Hartlen & Cronin (202x) "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data" is currently being prepared. 
 
 # Change Log
 ## R2021d
