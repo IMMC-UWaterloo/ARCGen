@@ -88,7 +88,7 @@ In addition to the three mandatory outputs documented above, ARGCen also has two
 `debugData`: A structured array containing various pieces of information that may be useful for debugging, including raw average and standard deviation information, correlation scores used during signal registration, and other information. 
 
 # Overview of Operation
-For a detailed description of how ARCGen operates, please refer to Hartlen et al. (202x). Only a high-level overview is presented here. 
+For a detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022). Only a high-level overview is presented here. 
 
 The operation of ARCGen can be broken into three stages: arc-length re-parameterization (from which ARCGen draws its name), signal registration, and statistical analysis. 
 
