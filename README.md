@@ -2,21 +2,22 @@
 
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022) (Under review).
+This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022).
 
-ARCGen is released under the open-sourced GNU GPL v3 license.
+ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
 # Dependencies
 
-ARCGen requires two MATLAB toolboxes
+ARCGen was developed on MATLAB R2020b. While it should work on earlier and later versions, compatiblity is not guaranteed. ARCGen requires three MATLAB toolboxes.
 - Optimization Toolbox: Required for signal registration
+- Mapping Toolbox: Required for corridor extraction
 - Parallel Computing Toolbox: (optional) Required to accelerate signal registration and corridor generation
 
 # Referencing
 
 If you use ARCGen in published research, please use the following citation in your research. 
 
-Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." Frontiers in Bioengineering and Biotechnology, Vol and DOI to be added. 
+Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." Frontiers in Bioengineering and Biotechnology.
 
 Bibtex format:
 

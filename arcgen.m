@@ -3,7 +3,7 @@
 % Created By:     D.C. Hartlen, M.ASc, EIT
 % Date:           27-Jun-2021
 % Updated By:     D.C. Hartlen, M.ASc, EIT
-% Date:           30-Nov-2021
+% Date:           24-Feb-2022
 % Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
@@ -13,9 +13,15 @@
 % on arc-length. Corridors are extracted using a marching squares
 % algorithm.
 %
+% If you use ARCGen in your research, please use the following citation:
+%     Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization 
+%        and Signal Registration to Determine a Characteristic Average and 
+%        Statistical Response Corridors of Biomechanical Data." Frontiers 
+%        in Bioengineering and Biotechnology.
+%
 % ARCGen is released under a GNU GPL v3 license. No warranty or support is
-% provided. The authors any responsibility for the validity, accuracy, or 
-% applicability of any results obtained from this code.
+% provided. The authors hold no responsibility for the validity, accuracy, 
+% or applicability of any results obtained from this code.
 %
 % This function has one mandatory input, four outputs, and many optional
 % inputs. Optional inputs are defined using name-value pair arguments. 
