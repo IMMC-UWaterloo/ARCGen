@@ -142,6 +142,9 @@ if strcmp(nvArg.UseParallel,'on')
     end
 end
 
+%% Add third party functions to path
+addpath('ThirdPartyFunctions')
+
 %% Process input options
 % Check if structure with specID, struct w/o specID, cell array. Error out
 % otherwise. Places inputs into structure format.
