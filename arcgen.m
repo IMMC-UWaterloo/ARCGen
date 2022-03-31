@@ -143,7 +143,9 @@ if strcmp(nvArg.UseParallel,'on')
 end
 
 %% Add third party functions to path
-addpath('ThirdPartyFunctions')
+funcPath = mfilename('fullpath');
+funcPath = fileparts(funcPath);
+addpath(fullfile(funcPath, 'ThirdPartyFunctions'));
 
 %% Process input options
 % Check if structure with specID, struct w/o specID, cell array. Error out
