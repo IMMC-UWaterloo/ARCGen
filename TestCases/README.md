@@ -19,4 +19,11 @@ The script `TestCase_MattucciLigaments.m` does not deomstrate any new from the L
 
 Dataset reference: Mattucci, S. F. E., &#38; Cronin, D. S. (2015). A method to characterize average cervical spine ligament response based on raw data sets for implementation into injury biomechanics models. <i>Journal of the Mechanical Behavior of Biomedical Materials</i>, <i>41</i>, 251–260. https://doi.org/10.1016/j.jmbbm.2014.09.023
 
-## 
+## NBDL 15g Frontal Acceleration Dataset
+This dataset consists of head kinematics collected from human volunteers under 15g frontal deceleration (Ewing & Thomas, 1972). Head acceleration and displacement timeseries data is collected in the x and z axis as well as rotation about the y-axis. 
+
+The scripts `TestCase_NBDL_15gFrontal_Accels.m` and `TestCase_NBDL_15gFrontal_Disp.m` demonstrate how signal registration options are used. The option `nWarpCtrlPts` is used to control the number of warping control points. The default value of this option is `0`, which disables signal registration. The option `warpingPenalty` specifies the warping penalty used to control warping. By default, this option is `1e-2`. 
+
+Additionally, both scripts also make use of the parallel computing to accelerate the calculation of the characterisic average and response corridors. Use of the MATLAB Parallel Computing Toolbox is control with the input option `UseParallel` set to `on`. Parallel computing is not enabled if the Parallel Computing Toolbox is not installed. The impact of `UseParallel` becomes more apparent when `nResamplePoints` and `CorridorRes` are set to values greater than 500. ARCGen will terminate with an error if sets this option to `on` if the toolbox is not installed. 
+
+Dataset Reference: Ewing, C. L., &#38; Thomas, D. J. (1972). <i>Human Head and Neck Response to Impact Acceleration.</i> Naval Aerospace Medical RESEARCH Lab Pensacola Fl.
