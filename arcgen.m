@@ -1,10 +1,4 @@
 %% ARCGen - Arc-length Response Corridor Generator
-% 
-% Created By:     D.C. Hartlen, M.ASc, EIT
-% Date:           27-Jun-2021
-% Updated By:     D.C. Hartlen, M.ASc, EIT
-% Date:           24-Feb-2022
-% Version:        MATLAB R2020b (older versions not guaranteed)
 %
 % ARCGen, short for Arc-length Response Corridor Generation, provides
 % automated calculation of a characteristic average and response corridors
@@ -14,10 +8,11 @@
 % algorithm.
 %
 % If you use ARCGen in your research, please use the following citation:
-%     Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization 
-%        and Signal Registration to Determine a Characteristic Average and 
+%     Hartlen D.C. and Cronin D.S. (2022), "Arc-Length Re-Parametrization 
+%        and Signal Registration to Determine a Characteristic Average and
 %        Statistical Response Corridors of Biomechanical Data." Frontiers 
-%        in Bioengineering and Biotechnology.
+%        in Bioengineering and Biotechnology* 10:843148. 
+%        doi: 10.3389/fbioe.2022.843148
 %
 % ARCGen is released under a GNU GPL v3 license. No warranty or support is
 % provided. The authors hold no responsibility for the validity, accuracy, 
@@ -105,7 +100,8 @@
 % debugData: a structure that provides a wealth of debugging information,
 %       including raw average and st. dev. data, correlation scores before
 %       and after registration, and other. 
-
+%
+% Copyright (c) 2022 Devon C. Hartlen
 
 function [charAvg, innerCorr, outerCorr, varargout] = ...
     arcgen(inputSignals,varargin)
@@ -114,7 +110,6 @@ function [charAvg, innerCorr, outerCorr, varargout] = ...
 nvArgObj = inputParser;
 addParameter(nvArgObj, 'nResamplePoints',   100);
 addParameter(nvArgObj, 'Diagnostics',       'off');
-addParameter(nvArgObj, 'CorridorScaleFact', 1);
 addParameter(nvArgObj, 'NormalizeSignals',  'on');
 addParameter(nvArgObj, 'EllipseKFact',      1);
 addParameter(nvArgObj, 'CorridorRes',       100);

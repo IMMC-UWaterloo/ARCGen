@@ -2,13 +2,13 @@
 
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. For a more detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022).
+This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. Test cases and tutorials can be found in the `TestCases` folder. While an overview of ARCGen's operatio is provided below, please refer to please refer to [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148) for detailed, rigorous coverage. 
 
 ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
 # Dependencies
 
-ARCGen was developed on MATLAB R2020b. While it should work on earlier and later versions, compatiblity is not guaranteed. ARCGen requires three MATLAB toolboxes.
+ARCGen was developed on MATLAB R2020b. While later versions should work, compatiblity with other versions, especially earlier versions is not guaranteed. ARCGen requires three MATLAB toolboxes.
 - Optimization Toolbox: Required for signal registration
 - Mapping Toolbox: Required for corridor extraction
 - Parallel Computing Toolbox: (optional) Required to accelerate signal registration and corridor generation
@@ -17,19 +17,21 @@ ARCGen was developed on MATLAB R2020b. While it should work on earlier and later
 
 If you use ARCGen in published research, please use the following citation in your research. 
 
-Hartlen, D.C. & Cronin, D.S. (2022). "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." Frontiers in Bioengineering and Biotechnology.
+Hartlen D.C. and Cronin D.S. (2022), "Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." *Frontiers in Bioengineering and Biotechnology* 10:843148. doi: 10.3389/fbioe.2022.843148
 
 Bibtex format:
-
+```
 @article{Hartlen_Cronin_2022,
-  author =  "Devon C. Hartlen and Duane S. Cronin",
-  title =   "Arc-length Re-parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data",
-  year =    "2022",
-  journal = "Frontiers in Bioengineering and Biotechnology",
-  volume =   "XX",
-  DOI =      "10.3389/XXXX"
+  AUTHOR={Hartlen, Devon C. and Cronin, Duane S.},   
+  TITLE={Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data},      
+  JOURNAL={Frontiers in Bioengineering and Biotechnology},      
+  VOLUME={10},      
+  YEAR={2022},      
+  URL={https://www.frontiersin.org/article/10.3389/fbioe.2022.843148},       
+  DOI={10.3389/fbioe.2022.843148},       
+  ISSN={2296-4185},   
 }
-  
+```
 # Contributing
 
 If you find discover any bugs or issues, or would like to suggest improvements, please create an [issue on this github repostiory](https://github.com/DCHartlen/ARCGen/issues). You are invited free to submit pull requests to integrate fixes and features directly into ARCGen, although pull requests will be reviewed before integration. 
@@ -112,6 +114,11 @@ Following arc-length reparameterization, all input signals will have the same nu
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) are large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
 
 # Change Log
+## R2022a
+R2022a contains a number of small bug fixes, but largely consists of documentation updates. R2022a also represents the first release to be packaged as a MATLAB toolbox for single file installation. 
+- 'arcgen.m' updated to handle file paths more robustly. 
+- All scripts in `Test Cases` updated to act as ARCGen tutorials
+
 ## R2021d
 R2021d represents a significant performance improvement over previous versions. Corridor extraction has been completely refactored to reduce runtime in that part of the code by upwards of 10x. Corridor extraction is also far more robust than previous verions, which should eliminate crashes in some use case. Runtimes assocaited with signal registration and corridor extraction can be further reduced through the integration of MATLAB's Parallel Computing Toolbox. Additionally, R2021d represents the first release with a formal license, GNU GPL v3
 - Added the 'UseParallel' to accelerate signal registration and envelope extraction. Requries the MATLAB Parallel Computing Toolbox. 
