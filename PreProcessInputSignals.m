@@ -1,11 +1,5 @@
 %% Pre-process Input Signals
 %
-% Created By:     D.C. Hartlen, M.ASc, EIT
-% Date:           13-Jun-2021
-% Updated By:     D.C. Hartlen, M.ASc, EIT     
-% Date:           30-Nov-2021           
-% Version:        MATLAB R2020b (older versions not guaranteed)
-%
 % This script pre-processes input signals which will be subsequently used
 % for to generate a characteristic average and response corridors.  
 % Preprocessing amalgoamtes several curves, ensures the validity of said
@@ -38,6 +32,8 @@
 %   + "Manual": "specId" is defined using the cell array "manualSpecIds".
 %        "manualSpecId" must be the same length as .csv file being 
 %        processed. 
+%
+% Copyright (c) 2022 Devon C. Hartlen
 
 %% Initialization
 fclose all;
@@ -48,6 +44,7 @@ clc;
 addpath('ThirdPartyFunctions') % Path to 3rd party functions
 
 %% Select desired data files to be processed
+% This is accomplished with a UI
 inputFilenames = uipickfiles('Output','struct');
 % correct file names
 for iFile = 1:length(inputFilenames)
