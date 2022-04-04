@@ -377,7 +377,7 @@ if nvArg.MinCorridorWidth > 0
 end
 
 %% Diagnostic: Plot normalized signals and St. Devs. 
-if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
+if strcmp(nvArg.Diagnostics,'on') || strcmpi(nvArg.Diagnostics,'detailed')
     figure('Name','Diagnostic Signals');
     cmap = lines(length(inputSignals));
     
@@ -455,7 +455,7 @@ if strcmp(nvArg.Diagnostics,'on') || strcmp(nvArg.Diagnostics,'detailed')
     title('Average and St.Dev. of Y-Data')
 end
 
-if strcmp(nvArg.Diagnostics,'detailed')
+if strcmpi(nvArg.Diagnostics,'detailed')
     % Plot ellipses    
     figure('Name','Ellipses and Corridor Extraction Debug'); hold on;
     % Scatter plot for debug
@@ -756,7 +756,7 @@ envInds = allEnvelopes(envInds, :);
 envelope = vertices(vertConn(envInds(1):envInds(2),1),:);
 
 % For debugging, plot all envelopes
-if strcmp(nvArg.Diagnostics,'detailed')
+if strcmpi(nvArg.Diagnostics,'detailed')
     for iEnv = 1:nEnvelopes
         envInds = allEnvelopes(iEnv, :);
         plot(vertices(vertConn(envInds(1):envInds(2),1),1),...
@@ -891,7 +891,7 @@ outerCorr = [interp1(alen,outerCorr(:,1),alenResamp),...
     interp1(alen,outerCorr(:,2),alenResamp)];
 
 %% Draw extension lines and sampling points to MS plot
-if strcmp(nvArg.Diagnostics,'detailed')
+if strcmpi(nvArg.Diagnostics,'detailed')
     % Plot corridors, avgs
     scatter(xx(:),yy(:),12,zz(:)>=1,'filled')
 %     plot(lineStart(:,1),lineStart(:,2),'.-k','DisplayName','Char Avg',...
