@@ -1,8 +1,25 @@
-% Script used for generating manuscript-grade corridors and images for
-% ARCGen publication. Only normalized data is used. Accelerations and
-% displacements are contained in separate scripts
+%% NBDL Head Kinematics, 15g Frontal Decelerations, Head Accelerations
+% This script was used to generate plots for Hartlen & Cronin (2022). This
+% script also serves as a great example of how the number of warping points
+% and warping penalty factor influences the resulting corridors. The
+% parameters provided with this script were found to produce the best
+% results. 
 %
-% R1 - Aug 8, 2021
+% This script produces corridors for head accelerations. Please refer to 
+% "TestCase_NBDL_15gFrontal_Disp.m" for head displacements. 
+%
+% Please refer to test case readme document for more details. 
+%
+% Dataset Citation:
+%    Ewing, C. L., & Thomas, D. J. (1972). "Human Head and Neck Response to
+%       Impact Acceleration." Naval Aerospace Medical Research Lab
+%       Pensacola Fl.
+%
+%    National Highway Traffic Safety Administration. (2017). "Biomechanics
+%       Test Database." 
+%       https://www.nhtsa.gov/research-data/databases-and-software
+%
+% Copyright (c) 2022 Devon C. Hartlen 
 
 %% MATLAB initialization
 fclose all;
