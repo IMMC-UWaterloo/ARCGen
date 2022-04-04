@@ -4,6 +4,8 @@ Biofidelity response corridors are commonly used to assess the performance of su
 
 This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. Test cases and tutorials can be found in the `TestCases` folder. While an overview of ARCGen's operatio is provided below, please refer to please refer to [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148) for detailed, rigorous coverage. 
 
+In addition to downloading the individual components on this page, ARCGen is provided as a single MATLAB toolbox file. This toolbox allows ARCGen to be automatically installed onto MATLAB's default execution path. This file can be found on the [repository's releases page](https://github.com/IMMC-UWaterloo/ARCGen/releases). 
+
 ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
 # Dependencies
