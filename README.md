@@ -1,5 +1,7 @@
 # ARCGen - Arc-length Response Corridor Generation
 
+[ARCGen is now also available in Python!](https://github.com/IMMC-UWaterloo/ARCGen-Python)
+
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
 
 This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. Test cases and tutorials can be found in the `TestCases` folder. While an overview of ARCGen's operatio is provided below, please refer to please refer to [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148) for detailed, rigorous coverage. 
