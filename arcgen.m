@@ -793,7 +793,7 @@ elseif size(indexIntercept,1) == 1
     % If the single found point is inside the envelope, the found intercept
     % is at the end. Therefore extend the start
     if inpolygon(charAvg(indexIntercept(2),1),...
-            charAvg(indexIntercept(2),1), envelope(:,1),envelope(:,2))
+            charAvg(indexIntercept(2),2), envelope(:,1),envelope(:,2))
         
         iIntEnd = indexIntercept(1);
         lineStart = [...
