@@ -1106,4 +1106,11 @@ for iVert = 1:nVerts
     end
 end
 
+% If more than one intercept, sort them from closest to furthest
+if size(indices,1) > 1
+    [~, sortInd] = sort(vecnorm(intercepts-basePt',2,2));
+    indices = indices(sortInd);
+    intercepts = intercepts(sortInd,:);
+end
+
 end
