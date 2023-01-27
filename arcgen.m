@@ -1046,3 +1046,44 @@ end
 penaltyScores = penaltyScores.*penaltyFactor;
 end
     
+%% Function to find intercept of Ray and Polygon
+function [indices, intercepts] = rayPolyInt(basePt, dirVec, poly)
+% Finds the intersections of a ray and polygon by incrementally solving the
+% ray-line segment problem. 
+%
+% Algorithm: rootllama.wordpress.com/2014/06/20/ray-line-segment-intersection-test-in-2d/
+%
+% basePt and dirVec are [2,1] vectors. Poly is a list of vertices in a
+% closed polygon
+
+nVerts= size(poly,1)-1; % Closed polygon so legnth+1
+
+indices = [];
+intercepts = [];
+
+% Cycle through line segments, and check if ray intercepts line segments
+for iVert = 1:nVerts
+    % a is first point, b is second point
+    a = poly(iVert,:)';
+    b = poly(iVert+1, :)';
+
+    % Define three helper vectors
+    v1 = basePt-a;
+    v2 = b-a;
+    v3 = [-dirVec(2), dirVec(1)]';
+
+    % t1 is parameter for ray
+    t1 = (v2(1)*v1(2) - v1(1)*v2(2))/dot(v2, v3);
+    % t2 is parameter for line segment
+    t2 = dot(v1, v3)/dot(v2, v3);
+
+    % Ray intercepts segment iff t1 is positive (forward ray projection)
+    % and 0<t2<=1
+    if ( (t1>0) && (t2>0) && (t2<=1) )
+        % record first index of line segment and coordinates of intercept
+        indices = [indices; iVert];
+        intercepts = [intercepts; (a+(b-a)*t2)'];
+    end
+end
+
+end
