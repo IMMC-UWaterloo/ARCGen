@@ -800,12 +800,18 @@ elseif size(indexIntercept,1) == 1
             interp1([0,aLenInterval],charAvg(1:2,1), -aLenExtension,'linear','extrap'),...
             interp1([0,aLenInterval],charAvg(1:2,2), -aLenExtension,'linear','extrap');...
             charAvg(1:indexLength,:)];
-        
+
+        % Plot line extensions for envelope splitting
+        if strcmpi(nvArg.Diagnostics, 'Detailed')
+            plot(lineStart(1:2,1), lineStart(1:2,2),'k:',...
+                'DisplayName','Start Ext.')
+        end
+
         %Find intercepts to divide line using Poly
         [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
             lineStart(:,1),lineStart(:,2));
         iIntStart = iIntStart(1);
-    % If the single found point is outside the envelope, the found
+        % If the single found point is outside the envelope, the found
     % intercept is the start
     else
         iIntStart = indexIntercept(1);
@@ -814,6 +820,13 @@ elseif size(indexIntercept,1) == 1
             (1+aLenExtension),'linear','extrap'),...
             interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
             (1+aLenExtension),'linear','extrap')];
+
+        % Plot line extensions for envelope splitting
+        if strcmpi(nvArg.Diagnostics, 'Detailed')
+            plot(lineEnd(end-1:end,1), lineEnd(end-1:end,2), 'k:', ...
+                'DisplayName', 'End Ext.')
+        end
+
         %Find intercepts to divide line using Poly
         [~,~,iIntEnd] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
             lineEnd(:,1),lineEnd(:,2));
@@ -841,6 +854,14 @@ else
         (1+aLenExtension),'linear','extrap'),...
         interp1([1,1-aLenInterval],[charAvg(end,2),charAvg(end-1,2)],...
         (1+aLenExtension),'linear','extrap')];
+
+    % Plot line extensions for envelope splitting
+    if strcmpi(nvArg.Diagnostics, 'Detailed')
+        plot(lineStart(1:2,1), lineStart(1:2,2),'k:',...
+            'DisplayName','Start Ext.')
+        plot(lineEnd(end-1:end,1), lineEnd(end-1:end,2), 'k:', ...
+            'DisplayName', 'End Ext.')
+    end
     
     %Find intercepts to divide line using Poly
     [~,~,iIntStart] = polyxpoly(closedEnvelope(:,1),closedEnvelope(:,2),...
