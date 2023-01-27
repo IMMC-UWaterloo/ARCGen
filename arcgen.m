@@ -813,7 +813,7 @@ elseif size(indexIntercept,1) == 1
 %         iIntStart = iIntStart(1);
 
         iIntEnd = indexIntercept(1);
-        [iIntStart,~] = rayPolyInt(charAvg(2,:)',...
+        [iIntStart,~] = rayxpoly(charAvg(2,:)',...
             (charAvg(1,:)-charAvg(2,:))', closedEnvelope);
         iIntStart = iIntStart(1);
 
@@ -839,7 +839,7 @@ elseif size(indexIntercept,1) == 1
 %         iIntEnd = iIntEnd(1);
 
         iIntStart = indexIntercept(1);
-        [iIntEnd,~] = rayPolyInt(charAvg(end-1,:)',...
+        [iIntEnd,~] = rayxpoly(charAvg(end-1,:)',...
             (charAvg(end,:)-charAvg(end-1,:))', closedEnvelope);
         iIntEnd = iIntEnd(1);
     end
@@ -883,11 +883,11 @@ else
 %         lineEnd(:,1),lineEnd(:,2));
 %     iIntEnd = iIntEnd(1);
 
-        [iIntStart,~] = rayPolyInt(charAvg(2,:)',...
+        [iIntStart,~] = rayxpoly(charAvg(2,:)',...
             (charAvg(1,:)-charAvg(2,:))', closedEnvelope);
         iIntStart = iIntStart(1);
 
-        [iIntEnd,~] = rayPolyInt(charAvg(end-1,:)',...
+        [iIntEnd,~] = rayxpoly(charAvg(end-1,:)',...
             (charAvg(end,:)-charAvg(end-1,:))', closedEnvelope);
         iIntEnd = iIntEnd(1);
         
@@ -1067,7 +1067,7 @@ penaltyScores = penaltyScores.*penaltyFactor;
 end
     
 %% Function to find intercept of Ray and Polygon
-function [indices, intercepts] = rayPolyInt(basePt, dirVec, poly)
+function [indices, intercepts] = rayxpoly(basePt, dirVec, poly)
 % Finds the intersections of a ray and polygon by incrementally solving the
 % ray-line segment problem. 
 %
@@ -1075,6 +1075,9 @@ function [indices, intercepts] = rayPolyInt(basePt, dirVec, poly)
 %
 % basePt and dirVec are [2,1] vectors. Poly is a list of vertices in a
 % closed polygon
+% 
+% If multiple intercepts are found, they are sorted from closest to base
+% point to furthest. 
 
 nVerts= size(poly,1)-1; % Closed polygon so legnth+1
 
