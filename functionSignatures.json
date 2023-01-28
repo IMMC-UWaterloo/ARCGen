@@ -1,0 +1,26 @@
+{
+    "arcgen":
+    {
+        "inputs":
+        [
+            {"name":"inputSignals", "kind":"required", "purpose":"Signals to be Processed"},
+            {"name":"nResamplePoints", "kind":"namevalue", "type":["numeric"], "purpose":"Number of Resampling Points"},
+            {"name":"CorridorRes", "kind":"namevalue", "type":["numeric"], "purpose":"Grid Size Used for Corridor Extraction"},
+            {"name":"nWarpCtrlPts", "kind":"namevalue", "type":["numeric"], "purpose":"Number of Warping Control Points for Signal Registration"},
+            {"name":"WarpingPenalty", "kind":"namevalue", "type":["numeric"], "purpose":"Penalty Factor Used During Signal Registration"}, 
+            {"name":"Diagnostics", "kind":"namevalue", "type":["char", "choices={'off','on','detailed'}"], "purpose":"Char. Array That Controls Diagnostic Plots"}, 
+            {"name":"UseParallel", "kind":"namevalue", "type":["char", "choices={'off','on'}"], "purpose":"Char. Array That Enables Parallel Processing"},
+            {"name":"MinCorridorWidth", "kind":"namevalue", "type":["numeric"], "purpose":"Factor Controlling Minimum Width"},
+            {"name":"EllipseKFact", "kind":"namevalue","type":["numeric"], "purpose":"Factor to Control Ellipse/Confidence Region Size"}
+        ],
+        "outputs":
+        [
+            {"name":"charAvg", "type":["2d", "ncols=2"], "purpose":"Characteristic Average Array"},
+            {"name":"innCorr", "type":["2d", "ncols=2"], "purpose":"Inner Corridor Array"},
+            {"name":"outCorr", "type":["2d", "ncols=2"], "purpose":"Outer Corridor Array"},
+            {"name":"proCurveData", "purpose":"Processed Signal Data as Structure"},
+            {"name":"debugData", "purpose":"Debug Data as Structure"}
+        ]
+    }
+
+}
