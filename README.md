@@ -1,5 +1,7 @@
 # ARCGen - Arc-length Response Corridor Generation
 
+[![View ARCGen - Arc-length-based averaging and statistics on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics)
+
 [ARCGen is now also available in Python!](https://github.com/IMMC-UWaterloo/ARCGen-Python)
 
 Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
