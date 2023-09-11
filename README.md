@@ -1,14 +1,20 @@
-# ARCGen - Arc-length Response Corridor Generation
+
+# ARCGen - General, Feature-Based Corridor Generation
 
 [![View ARCGen - Arc-length-based averaging and statistics on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics)
 
-[ARCGen is now also available in Python!](https://github.com/IMMC-UWaterloo/ARCGen-Python)
+![ARCGen Logo](./Assets/ARCGen.svg)
 
-Biofidelity response corridors are commonly used to assess the performance of surrogates such as computational models or anthropomorphic test devices while capturing the variability of experimental data. ARCGen represents a generalized method for computing response corridors and the characteristic average of experimental data capable of accommodating most types of input signals, including experimental data that is time-based, cross-variable, non-monotonic, and/or hysteretic. ARCGen is distributed as a single MATLAB function.
+> :memo: [**ARCGen is  also available for Python!**](https://github.com/IMMC-UWaterloo/ARCGen-Python)
 
-This document provides information on how to use ARCGen as well as a high-level overview of the methodologies that ARCGen uses. Test cases and tutorials can be found in the `TestCases` folder. While an overview of ARCGen's operation is provided below, please refer to please refer to [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148) for detailed, rigorous coverage. 
+ARCGen is a general, robust methodology to provide a feature-based assessment of average response and variability in the form of a characteristic average response and statistical response corridors. In particular, ARCGen is well suited to tackling the challenging types of signals common in biomechanics, such as:
+- Monotonic signals that do not share a common termination point
+- Highly oscillatory signals, such as those that capture head or limb kinematics
+- Hysteretic signals or signals that are non-monotonic in both axes
 
-In addition to downloading the individual components on this page, ARCGen is provided as a single MATLAB toolbox file. This toolbox allows ARCGen to be automatically installed onto MATLAB's default execution path. This file can be found on the [repository's releases page](https://github.com/IMMC-UWaterloo/ARCGen/releases). 
+ARCGen uses two major components to provide consistent, robust assessment without distortion of the characteristic shape of the underlying input signals. First, arc-length re-parameterization provides a framework to assess signals that may not terminate at common locations. Second, signal registration provides the ability to match common features shared across signals, enabling an assessment of variability in multiple axes simultaneously.
+
+ARCGen is provided as a MATLAB toolbox that can be downloaded and installed from the [MATLAB File Exchange](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics), from the [`releases page of this repository`](https://github.com/IMMC-UWaterloo/ARCGen/releases), or cloned from this repository. The following documentation is intended to provide an overview of how ARCGen operates at a high level and document the syntax required to use ARCGen. Users are encouraged to look at the tutorials and test cases found in the `TestCases` folder for practical usage of ARCGen and common items to consider when using ARCGen. Detailed coverage of the theory behind ARCGen's operation can be found in [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148).
 
 ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
