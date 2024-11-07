@@ -53,12 +53,12 @@
 % OPTIONAL INPUTS:
 % ----------------
 % nResamplePoints: integer defining the number of points used to
-%       re-parameterize input signals. Default: 100. 
+%       re-parameterize input signals. Default: 250. 
 % CorridorRes: integeer defining the number of grid points used for the
 %       marching squares algorithm. The sampling grid for the marching
 %       squares algorithm extends 120% of extreme corridors. This parameter
 %       defines the number of points along each side of the grid. 
-%       Default: 100. It is common to increase this significantly. 
+%       Default: 250. It is common to increase this significantly. 
 % NormalizeSignals: character arry used to turn on signal normalization.
 %       Options: 'on' (default), 'off'
 % EllipseKFact: float used to scale the major and minor axis of the
@@ -72,8 +72,8 @@
 %       'MinCorridorFactor'*max(st.dev.). x & y axes are handled
 %       separately. A value of 0 (default) disables forcing minimum width.
 % nWarpCtrlPts: integer that sets the number of interior control points
-%       used for signal registration. A value of 0 (default) disables
-%       signal registration
+%       used for signal registration. A value of 0 disables signal registration.
+%       Default: 2. 
 % WarpingPenalty: float specifying the penalty factor used during the
 %       signal registration process. A value of 10^-2 (default) to 10^3 is
 %       recommended, but the exact value will need to be tuned to a
@@ -108,13 +108,13 @@ function [charAvg, innerCorr, outerCorr, varargout] = ...
 
 %% Setup Name-Value Argument parser
 nvArgObj = inputParser;
-addParameter(nvArgObj, 'nResamplePoints',   100);
+addParameter(nvArgObj, 'nResamplePoints',   250);
 addParameter(nvArgObj, 'Diagnostics',       'off');
 addParameter(nvArgObj, 'NormalizeSignals',  'on');
 addParameter(nvArgObj, 'EllipseKFact',      1);
-addParameter(nvArgObj, 'CorridorRes',       100);
+addParameter(nvArgObj, 'CorridorRes',       250);
 addParameter(nvArgObj, 'MinCorridorWidth',  0); 
-addParameter(nvArgObj, 'nWarpCtrlPts',      0);
+addParameter(nvArgObj, 'nWarpCtrlPts',      2);
 addParameter(nvArgObj, 'WarpingPenalty',    1e-2);
 addParameter(nvArgObj, 'UseParallel',       'off');
 nvArgObj.KeepUnmatched = true;
