@@ -140,6 +140,16 @@ Following arc-length re-parameterization and registration, all input signals wil
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) is large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
 
 # Change Log
+
+## V 1.5.0
+Version 1.5.0 of ARCGen sees incremental improvement over previous versions. In addition to switching from calendar versioning to semantic versioning, ARCGen 1.5.0 now performs signal registration with 2 control points by default if `nWarpCtrlPts` is not otherwise defined. Additionally, the default number of resampling points and corridor grid resolution are both increased to 250 points from 150. All three of these parameters can be changed using the appropriate name-value pair arguments. These changes do not change any of the underlying behaviour of ARCGen, but are intended to ensure new users get better results more quickly. 
+
+Additionally, the `README.md` has been updated to increase clarity and get new users up and running more quickly. 
+
+ - `nResamplePoints` default value changed to 250 from 100. 
+ - `CorridorRes` default value changed to 250 from 100.
+ - `nWarpCtrlPts` default value changed to 2 from 0 (signal registration disabled)
+
 ## R2023a
 R2023a introduces a completely revised algorithm for envelope splitting. The revised algorithm is unconditionally stable and operates on the concept of ray-polygon interception. In short, if the envelope of all ellipses found with the marching squares algorithm does not intercept the computed characteristic average, rays are projected from the start and/or end of the characteristic average to determine where the envelope should be split into inner and outer corridors. Previously, a simpler algorithm was used that was shown to be effective in most cases, but was only guaranteed to function in all circumstances. 
 
