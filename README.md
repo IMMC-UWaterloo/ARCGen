@@ -5,65 +5,46 @@
 
 ![ARCGen Logo](./Assets/ARCGen.svg)
 
-> :memo: [**ARCGen is  also available for Python!**](https://github.com/IMMC-UWaterloo/ARCGen-Python)
+> [!NOTE]
+> [ARCGen is also available for Python! :snake:](https://github.com/IMMC-UWaterloo/ARCGen-Python)
 
-ARCGen is a general, robust methodology to provide a feature-based assessment of average response and variability in the form of a characteristic average response and statistical response corridors. In particular, ARCGen is well suited to tackling the challenging types of signals common in biomechanics, such as:
+ARCGen is a general, robust methodology providing feature-based assessment of average response and variability in the form of a characteristic average response and statistical response corridors. In particular, ARCGen is well suited to tackling the challenging types of signals common in biomechanics, such as:
 - Monotonic signals that do not share a common termination point
 - Highly oscillatory signals, such as those that capture head or limb kinematics
 - Hysteretic signals or signals that are non-monotonic in both axes
 
-ARCGen uses two major components to provide consistent, robust assessment without distortion of the characteristic shape of the underlying input signals. First, arc-length re-parameterization provides a framework to assess signals that may not terminate at common locations. Second, signal registration provides the ability to match common features shared across signals, enabling an assessment of variability in multiple axes simultaneously.
-
-ARCGen is provided as a MATLAB toolbox that can be downloaded and installed from the [MATLAB File Exchange](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics), from the [`releases page of this repository`](https://github.com/IMMC-UWaterloo/ARCGen/releases), or cloned from this repository. The following documentation is intended to provide an overview of how ARCGen operates at a high level and document the syntax required to use ARCGen. Users are encouraged to look at the tutorials and test cases found in the `TestCases` folder for practical usage of ARCGen and common items to consider when using ARCGen. Detailed coverage of the theory behind ARCGen's operation can be found in [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148).
-
 ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
-# Dependencies
+# Installation
 
-ARCGen was developed on MATLAB R2020b. While later versions should work, compatibility with other versions, especially earlier versions, is not guaranteed. ARCGen requires three MATLAB toolboxes.
-- Optimization Toolbox: Required for signal registration
-- Mapping Toolbox: Required for corridor extraction
-- Parallel Computing Toolbox: (optional) Required to accelerate signal registration and corridor generation
+Download the ARCGen Toolbox from the [MathWorks File Exchange](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics) or download and install directly from within MATLAB by selecting "Add-Ons" from the "Home" tab of the main toolbar and searching for "ARCGen" in the Add-On Explorer. Installing from ARCGenthe toolbox ensures that the `arcgen()` function is added to MATLAB's execution path. 
 
-# Referencing
+To test that MATLAB is installed correctly, type `open arcgen` into the MATLAB command window. If the `arcgen.m` file opens in the editor, ARCGen is installed correctly. 
 
-If you use ARCGen in published research, please use the following citation in your research. 
+ARCGen is provided with several example datasets that explore different types of signals and different ways to use ARCGen. These example datasets are packaged with the downloaded toolbox and in this repository's [`TestCases` folder](https://github.com/IMMC-UWaterloo/ARCGen/tree/main/TestCases).
 
-Hartlen D.C. and Cronin D.S. (2022), "Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." *Frontiers in Bioengineering and Biotechnology* 10:843148. doi: 10.3389/fbioe.2022.843148
-
-Bibtex format:
-```
-@article{Hartlen_Cronin_2022,
-  AUTHOR={Hartlen, Devon C. and Cronin, Duane S.},   
-  TITLE={Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data},      
-  JOURNAL={Frontiers in Bioengineering and Biotechnology},      
-  VOLUME={10},      
-  YEAR={2022},      
-  URL={https://www.frontiersin.org/article/10.3389/fbioe.2022.843148},       
-  DOI={10.3389/fbioe.2022.843148},       
-  ISSN={2296-4185},   
-}
-```
-# Contributing
-
-If you discover any bugs or issues or would like to suggest improvements, please create an [issue on this GitHub repostiory](https://github.com/DCHartlen/ARCGen/issues). You are invited free to submit pull requests to integrate fixes and features directly into ARCGen, although pull requests will be reviewed before integration. 
-
-Anyone is free to fork ARCGen for their work as long as they follow the GNU GPL v3 license requirements.
 
 # Usage
-ARCGen is distributed as a MATLAB function and makes extensive use of name-value pair arguments to define options. In its most basic, ARCGen can be run with the following mandatory inputs and outputs. While all mandatory and optional arguments are described below, more information is available in in-code documentation. 
+ARCGen is used like a typical MATLAB function with one required input variable (`inputSignals`) and a host of optional name-value pair arguments that provide important control over arc-length re-parameterization and signal registration. An example of ARCGen used in code with typical name-value pair arguments is provided below. 
 
 ````matlab
-[charAvg, innerCorr, outerCorr] = arcgen(inputSignals, name-value arguments)
+[charAvg, innerCorr, outerCorr] = arcgen(inputSignals, ...
+                                         'nResamplePoints', 250, ...
+                                         'CorridorRes', 250, ...
+                                         'nWarpCtrlPts', 2, ...
+                                         'WarpingPenalty', 1e-2, ...
+                                         'UseParallel', 'on')
 ````
 
+Complete documentation of all of ARCGen's input arguments and optional outputs is available both in the code and below. 
+
 ## Mandatory Inputs
-`inputSignals`: Contains the signals from which a characteristic average and corridors can be computed. Signals must be two-dimensional (i.e. acceleration-time, force-displacement) but do not need to contain the same number of points or be sampled at the same sampling frequency. There is no limit to the number of input signals ARCGen can accommodate, but runtime will increase as the number of signals increases. `inputSignals` must be defined in one of the following three formats. The script 'PreProcessInputSignals.m' is provided to help users place their data into an appropriate format for use with ARCGen. 
+`inputSignals`: Contains the signals from which a characteristic average and corridors can be computed. Signals must be two-dimensional (i.e. acceleration-time, force-displacement) but do not need to contain the same number of points or be sampled at the same sampling frequency. There is no limit to the number of input signals ARCGen can accommodate, but runtime will increase as the number of signals increases. `inputSignals` must be defined in one of the following three formats. The script ['PreProcessInputSignals.m'](https://github.com/IMMC-UWaterloo/ARCGen/blob/main/PreProcessInputSignals.m) is provided to help users place their data into an appropriate format for use with ARCGen. 
 - a [nSignal, 2] dimensional structured array consisting of the following two fields. Field names are case-sensitive
-  - data: a two-column array defining the input signal
-  - specId: a character array containing an identifier for the associated signal
+  - data: a two-column array defining the input signal
+  - specId: a character array containing an identifier for the associated signal
 - a [nSignal, 1] dimensional structured array consisting of a single field
-  - data: a two-column array defining the input signal
+  - data: a two-column array defining the input signal
 - a [nSignal, 1] cell array containing 'nSignal' two column arrays corresponding to each input signal. 
 
 ## Mandatory Outputs
@@ -80,13 +61,13 @@ ARCGen contains many optional inputs that allow the user to control many of the 
 
 `CorridorRes`: An integer defining the number of grid points the marching squares algorithm uses to extract the corridor. This sampling grid is automatically calculated based on the most extreme possible corridor values. Increasing this value will improve how accurately the corridor is extracted. Default: 100. 
 
-`NormalizeSignals`: A character array used to control whether magnitude normalization is performed before arc-length re-parameterization. It is highly recommended that this option is enabled. Input options: 'on' (default), 'off'
+`NormalizeSignals`: A character array used to control whether magnitude normalization is performed before arc-length re-parameterization. It is highly recommended that this option be enabled. Input options: 'on' (default), 'off'
 
-`EllipseKFact`: A float used to scale the size of the ellipses defined by the confidence region at each point of the characteristic average. A value of 1.0 creates a corridor that is one standard deviation wide at each point of the characteristic average. However, this only corresponds to approximately 38% of variability for two-dimensional data. The square root of the chi-squared quantile function can be used to define response corridors with respect to p-value. Default: 1.0 (or corridors of plus and minus one standard deviation).
+`EllipseKFact`: A float used to scale the size of the ellipses defined by the confidence region at each point of the characteristic average. A value of 1.0 creates a corridor that is one standard deviation wide at each point of the characteristic average. Default: 1.0 (or corridors of plus and minus one standard deviation).
 
 `MinCorridorWidth`: A float value used to enforce a minimum corridor width based on maximum standard deviation. This option can be useful if corridors do not extend to the beginning or end of the characteristic average due to low variability between input signals. However, enforcing a minimum width is not representative of the actual variability of underlying data. Default: 0.0 (does not enforce a minimum corridor width). 
 
-`nWarpCtrlPts`: An integer defining the number of interior control points used for signal registration. Default: 0 (disables signal registration)
+`nWarpCtrlPts`: An integer defining the number of interior control points used for signal registration. A value of 0 disables signal registration. Default: 2 (some warping). 
 
 `WarpingPenalty`: A float defining the penalty factor used during signal registration. Default: 1e-2. 
 
@@ -101,27 +82,60 @@ In addition to the three mandatory outputs documented above, ARGCen also has two
 
 `debugData`: A structured array containing various pieces of information that may be useful for debugging, including raw average and standard deviation information, correlation scores used during signal registration, and other information. 
 
-# Overview of Operation
-For a detailed description of how ARCGen operates, please refer to Hartlen and Cronin (2022). Therefore, only a high-level overview is presented here. 
 
-The operation of ARCGen can be broken into three stages: arc-length re-parameterization (from which ARCGen draws its name), signal registration, and statistical analysis. 
+# Dependencies
+
+ARCGen was developed on MATLAB R2020b. While later versions should work, compatibility with other versions, especially earlier versions, is not guaranteed. ARCGen requires three MATLAB toolboxes. 
+- Optimization Toolbox: Required for signal registration
+- Mapping Toolbox: Required for corridor extraction
+- Parallel Computing Toolbox: (optional) Required to accelerate signal registration and corridor generation
+
+ARCGen uses compiled MEX code for accelerated execution. Compilation was performed for MATLAB. Other operating systems are not supported or gauranteed to work. 
+
+# Referencing
+
+If you use ARCGen in published research, please use the following citation in your research. 
+
+Hartlen D.C. and Cronin D.S. (2022), "Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data." *Frontiers in Bioengineering and Biotechnology* 10:843148. doi: 10.3389/fbioe.2022.843148
+
+Bibtex format:
+```
+@article{Hartlen_Cronin_2022,
+ AUTHOR={Hartlen, Devon C. and Cronin, Duane S.},   
+ TITLE={Arc-Length Re-Parametrization and Signal Registration to Determine a Characteristic Average and Statistical Response Corridors of Biomechanical Data},      
+ JOURNAL={Frontiers in Bioengineering and Biotechnology},      
+ VOLUME={10},      
+ YEAR={2022},      
+ URL={https://www.frontiersin.org/article/10.3389/fbioe.2022.843148},       
+ DOI={10.3389/fbioe.2022.843148},       
+ ISSN={2296-4185},   
+}
+```
+# Contributing
+
+If you discover any bugs or issues or would like to suggest improvements, please create an [issue on this GitHub repostiory](https://github.com/DCHartlen/ARCGen/issues). You are invited free to submit pull requests to integrate fixes and features directly into ARCGen, although pull requests will be reviewed before integration. 
+
+Anyone is free to fork ARCGen for their work as long as they follow the GNU GPL v3 license requirements.
+
+# Overview of Operation
+For a detailed description of how ARCGen operates, please refer to [Hartlen and Cronin (2022)](https://www.frontiersin.org/article/10.3389/fbioe.2022.843148). Therefore, only a high-level overview is presented here. In general, the operation of ARCGen can be divided into three stages: arc-length re-parameterization, signal registration, and statistical analysis. 
 
 ## Arc-length Re-parameterization
-Arc-length re-parameterization is the critical feature that allows ARCGen to handle input signals that are non-monotonic in both axes (a behaviour called hysteresis). Arc-length provides a convenient means to define input points with respect to a strictly monotonic value inherently tied to the shape of the signal. 
+Arc-length re-parameterization allows ARCGen to handle input signals that are non-monotonic in either measurement axis (a behaviour called hysteresis). Arc-length provides a convenient means to define input points with respect to a strictly monotonic value inherently tied to the shape of the signal. 
 
-Before computing the arc-length of each curve, all signals are scaled to eliminate issues of differing magnitude between the axes. This scaling is based on the mean extreme values of all input signals, such that the relative magnitude of each scaled signal relative to one another is maintained. These scaled values are only used for arc-length calculations and are not used later in signal registration or statistical analysis. 
+Before computing the arc-length of each curve, all signals are scaled to eliminate issues of differing magnitude between the axes. Scaling ensures that the shape of the resulting average and corridors are reflective of the inputted signals. All signals are scaled based on the mean extreme values of both measurement axes to eliminate magnitude differences between axes when calculating arc-length. These scaled values are only used for arc-length calculations and are not used later in signal registration or statistical analysis.
 
-Once signals have been normalized, the arc-length of each signal is computed for each point in the signal. The arc-length is then normalized to itself, such that all signals have a normalized arc-length of 1.0. Finally, signals are resampled such that all signals have points at the same normalized arc-lengths. 
+Once signals have been scaled, the arc-length of each signal is computed for each point in the signal. The arc-length is then normalized to the total arc-length of each signal, such that all signals have a normalized arc-length of 1.0. Finally, signals are resampled such that all signals have points at the same normalized arc-lengths. 
 
 ## Signal Registration
-One of the underlying assumptions of arc-length re-parametrization is that critical features in the signal appear at approximately the same normalized arc-length. However, if said features are not perfectly aligned, an average can skew or smear the resulting characteristic average. Additionally, features such as significant variability or noise can dramatically affect the arc-length calculation, changing where critical features occur with respect to normalized arc-length. 
+One of the underlying assumptions of arc-length re-parametrization is that critical features in the signal appear at approximately the same normalized arc-length. However, the resulting characteristic average can be distorted if said features are not perfectly aligned. Additionally, features such as significant variability or noise can dramatically affect the arc-length calculation, changing where critical features occur with respect to normalized arc-length. 
 
-Signal registration (or curve registration) can be applied to help align critical features of signals. This process introduces a warping function for each input signal that subtly alters how each signal is resampled with respect to arc-length to align critical features. These warping functions (strictly monotonic, piecewise Hermite cubic splines) are determined for all signals simultaneously by maximizing cross-correlation between all signals. To ensure that warping functions do not produce highly skewed, unrealistic responses, a penalty function is used to limit the amount of warping introduced. 
+Signal registration is applied to help align critical features of signals. This process introduces a warping function for each input signal that subtly alters how each signal is resampled with respect to arc-length to align critical features. These warping functions (strictly monotonic, piecewise Hermite cubic splines) are determined for all signals simultaneously by maximizing cross-correlation between all signals. To ensure that warping functions do not produce highly skewed, unrealistic responses, a penalty function is used to limit the amount of warping introduced. 
 
 Signal registration is an optional process and is not needed if input signals are very highly correlated or strictly monotonic. While some experimentation is needed to select the best number of control points, a rule of thumb would be to set the number of interior control points to the number of inflection points expected in the characteristic average. 
 
 ## Statistical Analysis
-Following arc-length re-parameterization, all input signals will have the same number of points at the same normalized arc-length. If signal registration has been performed, the registered points will be used for statistical analysis. Statistical analysis is undertaken in a point-wise fashion at each normalized arc-length. This analysis assumes points are uncorrelated and distributed according to a two-dimensional normal distribution. Based on this assumption, an elliptical confidence region can be constructed at each normalized arc-length. The length of the major and minor axes of these ellipses is proportional to the standard deviation at each arc-length. However, unlike a one-dimensional confidence region, where a plus and minus one standard deviation region will account for 68% of variability, the same two-dimensional elliptical region only accounts for 38%. To control the size of the region based on variance, the quantile function of the chi-squared distribution at the desired variance or p-value can be used to scale the size of the ellipse (optional input option `EllipseKFact`).
+Following arc-length re-parameterization and registration, all input signals will have the same number of points and have features aligned with respect to a consistent normalized arc-length. Statistical analysis is undertaken in a point-wise fashion at each normalized arc-length. This analysis assumes points are uncorrelated and distributed according to a two-dimensional normal distribution. Based on this assumption, an elliptical confidence region can be constructed at each normalized arc-length. The length of these ellipses' major and minor axes is proportional to the standard deviation at each arc-length. 
 
 The characteristic average of the input signals is defined as the mean value at each normalized arc-length. The response corridors are the envelope of all ellipses. As there is no closed-form way of extracting this envelope, a marching-squares algorithm is used to extract this envelope numerically. Because the envelope is extracted numerically, it is important that the number of resampling points (`nResamplePoints`) is large enough to ensure that ellipses are sufficiently overlapped to provide a smooth, realistic envelope. Similarly, the resolution of the marching squares grid (`CorridorRes`) should be fine enough to capture the shape of the ellipses correctly. This last feature is similar to ensuring that the mesh of a finite element or computational fluid dynamics simulation is fine enough to resolve features. 
 
@@ -131,7 +145,7 @@ R2023a introduces a completely revised algorithm for envelope splitting. The rev
 
 Additionally, MATLAB code suggestions or 'intellisense' has been added to provide the user with on-the-fly help on inputs and name-value arguments. 
 
-- envelop splitting now uses a ray-polygon interception algorithm
+- envelope splitting now uses a ray-polygon interception algorithm
 - Added code suggestions. 
 
 ## R2022b
@@ -149,4 +163,4 @@ R2021d represents a significant performance improvement over previous versions. 
 - Completely redeveloped envelop extraction algorithm to significantly reduce computational expense. 
 - Envelope splitting to produce inner and outer corridors is now far more robust and should eliminate any 'iIntStart' or 'iIntEnd' that have cropped up in the past. 
 - Integration of the GNU GPL v3 license. 
-  
+  
