@@ -1,7 +1,9 @@
 
 # ARCGen - General, Feature-Based Corridor Generation
 
+<!---
 [![View ARCGen - Arc-length-based averaging and statistics on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics)
+--->
 
 ![ARCGen Logo](./Assets/ARCGen.svg)
 
@@ -17,7 +19,15 @@ ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or gua
 
 # Installation
 
+> [!WARNING]  
+> We are currently experiencing issues with the MathWorks File Exchange. Please download ARCGen using the compiled toolbox available in the ["Releases"](https://github.com/IMMC-UWaterloo/ARCGen/releases) section of this repostiory. 
+
+To install ARCGen, please download the compiled toobox (`.mltbx` file) from the ["Releases"](https://github.com/IMMC-UWaterloo/ARCGen/releases) section of this repository. To install, simply double-click the toolbox on a computer with MATLAB installed and follow the prompts. If MATLAB does not automatically launch, open MATLAB and using the integrated file explorer, navigate to where the toolbox is saved and double-click it from within MATLAB. 
+
+<!---
 Download the ARCGen Toolbox from the [MathWorks File Exchange](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics) or download and install directly from within MATLAB by selecting "Add-Ons" from the "Home" tab of the main toolbar and searching for "ARCGen" in the Add-On Explorer. Installing from ARCGenthe toolbox ensures that the `arcgen()` function is added to MATLAB's execution path. 
+
+--->
 
 To test that MATLAB is installed correctly, type `open arcgen` into the MATLAB command window. If the `arcgen.m` file opens in the editor, ARCGen is installed correctly. 
 
