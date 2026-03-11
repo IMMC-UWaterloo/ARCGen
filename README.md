@@ -4,8 +4,29 @@
 
 [![View ARCGen - Arc-length-based averaging and statistics on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics)
 
+<div align="center">
+<picture>
+  <img alt="ARCGen Logo" src="./Assets/ARCGen.svg">
+</picture>
+</div>
 
-![ARCGen Logo](./Assets/ARCGen.svg)
+ARCGen development is now managed by Arcus Analytica. To learn more about upcoming developments in signal processing, objective model ratings, and statistical testing, please check out [arcusanalytica.com](https://arcusanalytica.com/)
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./Assets/Arcus_White_on_Transparent.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./Assets/Arcus_Black_on_Transparent.svg">
+  <img alt="Arcus Logo" src="./Assets/Arcus_Black_on_Transparent.svg">
+</picture>
+</div>
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./Assets/Arcus_Products_Dark_R1.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./Assets/Arcus_Products_Light_R1.svg">
+  <img alt="Arcus Product Logos" src="./Assets/Arcus_Products_Light_R1.svg">
+</picture>
+</div>
 
 > [!NOTE]
 > [ARCGen is also available for Python! :snake:](https://github.com/IMMC-UWaterloo/ARCGen-Python)
