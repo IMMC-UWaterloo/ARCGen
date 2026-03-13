@@ -4,8 +4,11 @@
 
 [![View ARCGen - Arc-length-based averaging and statistics on File Exchange](https://www.mathworks.com/matlabcentral/images/matlab-file-exchange.svg)](https://www.mathworks.com/matlabcentral/fileexchange/116975-arcgen-arc-length-based-averaging-and-statistics)
 
-
-![ARCGen Logo](./Assets/ARCGen.svg)
+<div align="center">
+<picture>
+  <img alt="ARCGen Logo" src="./Assets/ARCGen.svg">
+</picture>
+</div>
 
 > [!NOTE]
 > [ARCGen is also available for Python! :snake:](https://github.com/IMMC-UWaterloo/ARCGen-Python)
@@ -16,6 +19,24 @@ ARCGen is a general, robust methodology providing feature-based assessment of av
 - Hysteretic signals or signals that are non-monotonic in both axes
 
 ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
+
+ARCGen development is now maintained by Arcus Analytica. To learn more about upcoming developments in signal processing, objective model ratings, and statistical testing, please check out [arcusanalytica.com](https://arcusanalytica.com/)
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./Assets/Arcus_White_on_Transparent.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./Assets/Arcus_Black_on_Transparent.svg">
+  <img alt="Arcus Logo" src="./Assets/Arcus_Black_on_Transparent.svg">
+</picture>
+</div>
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./Assets/Arcus_Products_Dark_R1.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./Assets/Arcus_Products_Light_R1.svg">
+  <img alt="Arcus Product Logos" src="./Assets/Arcus_Products_Light_R1.svg">
+</picture>
+</div>
 
 # Installation
 
