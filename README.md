@@ -10,7 +10,17 @@
 </picture>
 </div>
 
-ARCGen development is now managed by Arcus Analytica. To learn more about upcoming developments in signal processing, objective model ratings, and statistical testing, please check out [arcusanalytica.com](https://arcusanalytica.com/)
+> [!NOTE]
+> [ARCGen is also available for Python! :snake:](https://github.com/IMMC-UWaterloo/ARCGen-Python)
+
+ARCGen is a general, robust methodology providing feature-based assessment of average response and variability in the form of a characteristic average response and statistical response corridors. In particular, ARCGen is well suited to tackling the challenging types of signals common in biomechanics, such as:
+- Monotonic signals that do not share a common termination point
+- Highly oscillatory signals, such as those that capture head or limb kinematics
+- Hysteretic signals or signals that are non-monotonic in both axes
+
+ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
+
+ARCGen development is now maintained by Arcus Analytica. To learn more about upcoming developments in signal processing, objective model ratings, and statistical testing, please check out [arcusanalytica.com](https://arcusanalytica.com/)
 
 <div align="center">
 <picture>
@@ -27,16 +37,6 @@ ARCGen development is now managed by Arcus Analytica. To learn more about upcomi
   <img alt="Arcus Product Logos" src="./Assets/Arcus_Products_Light_R1.svg">
 </picture>
 </div>
-
-> [!NOTE]
-> [ARCGen is also available for Python! :snake:](https://github.com/IMMC-UWaterloo/ARCGen-Python)
-
-ARCGen is a general, robust methodology providing feature-based assessment of average response and variability in the form of a characteristic average response and statistical response corridors. In particular, ARCGen is well suited to tackling the challenging types of signals common in biomechanics, such as:
-- Monotonic signals that do not share a common termination point
-- Highly oscillatory signals, such as those that capture head or limb kinematics
-- Hysteretic signals or signals that are non-monotonic in both axes
-
-ARCGen is released under the open-sourced GNU GPL v3 license. No warranty or guarantee of support is provided. The authors hold no responsibility for the validity, accuracy, or applicability of any results obtained from this code.
 
 # Installation
 
